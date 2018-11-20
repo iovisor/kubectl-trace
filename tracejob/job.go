@@ -8,6 +8,11 @@ import (
 )
 
 func CreateJob(jobClient batchv1typed.JobInterface) (*batchv1.Job, error) {
+	bpfTraceCmd := []string{
+		"bpftrace",
+		"-e",
+		`kprobe:do_sys_open { printf("%s: %s\n", comm, str(arg1)) }`,
+	}
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-renzo",
@@ -21,7 +26,7 @@ func CreateJob(jobClient batchv1typed.JobInterface) (*batchv1.Job, error) {
 		Spec: batchv1.JobSpec{
 			Parallelism:           int32Ptr(1),
 			Completions:           int32Ptr(1),
-			ActiveDeadlineSeconds: int64Ptr(5), // TODO(fntlnz): allow canceling from kubectl and increase this
+			ActiveDeadlineSeconds: int64Ptr(100), // TODO(fntlnz): allow canceling from kubectl and increase this
 			BackoffLimit:          int32Ptr(1),
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -56,11 +61,7 @@ func CreateJob(jobClient batchv1typed.JobInterface) (*batchv1.Job, error) {
 						apiv1.Container{
 							Name:    "test-renzo-container",
 							Image:   "quay.io/fntlnz/kubectl-trace-bpftrace:master",
-							Command: []string{"bpftrace"},
-							Args: []string{
-								"-e",
-								`kprobe:do_sys_open { printf("%s: %s\n", comm, str(arg1)) }`,
-							},
+							Command: bpfTraceCmd,
 							VolumeMounts: []apiv1.VolumeMount{
 								apiv1.VolumeMount{
 									Name:      "modules",

@@ -2,7 +2,9 @@ module github.com/fntlnz/kubectl-trace
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
-	github.com/evanphx/json-patch v4.1.0+incompatible // indirect
+	github.com/davecgh/go-spew v1.1.1
+	github.com/docker/spdystream v0.0.0-20160310174837-449fdfce4d96 // indirect
+	github.com/elazarl/goproxy v0.0.0-20181111060418-2ce16c963a8a // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/gogo/protobuf v1.1.1 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
@@ -30,10 +32,7 @@ require (
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c // indirect
 	google.golang.org/appengine v1.3.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	k8s.io/api v0.0.0-20181117111259-46ad728b8d13
-	k8s.io/apimachinery v0.0.0-20181116115711-1b0702fe2927
-	k8s.io/cli-runtime v0.0.0-20181110193329-9ab67e9b3200
+	k8s.io/api v0.0.0-20181004124137-fd83cbc87e76
+	k8s.io/apimachinery v0.0.0-20180913025736-6dd46049f395
 	k8s.io/client-go v9.0.0+incompatible
-	k8s.io/klog v0.1.0 // indirect
-	sigs.k8s.io/yaml v1.1.0 // indirect
 )
