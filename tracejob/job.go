@@ -24,10 +24,11 @@ func CreateJob(jobClient batchv1typed.JobInterface) (*batchv1.Job, error) {
 			},
 		},
 		Spec: batchv1.JobSpec{
-			Parallelism:           int32Ptr(1),
-			Completions:           int32Ptr(1),
-			ActiveDeadlineSeconds: int64Ptr(100), // TODO(fntlnz): allow canceling from kubectl and increase this
-			BackoffLimit:          int32Ptr(1),
+			TTLSecondsAfterFinished: int32Ptr(5),
+			Parallelism:             int32Ptr(1),
+			Completions:             int32Ptr(1),
+			ActiveDeadlineSeconds:   int64Ptr(100), // TODO(fntlnz): allow canceling from kubectl and increase this
+			BackoffLimit:            int32Ptr(1),
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-renzo-pod",

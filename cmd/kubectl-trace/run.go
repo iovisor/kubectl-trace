@@ -10,10 +10,12 @@ import (
 
 	"github.com/fntlnz/kubectl-trace/tracejob"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	apiv1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	restclient "k8s.io/client-go/rest"
@@ -37,8 +39,10 @@ Examples:
 }
 
 func run(cmd *cobra.Command, args []string) {
-	// TODO(leodido): replace this with flags
-	kubeconfig := os.Getenv("KUBECONFIG")
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	kubeconfig := viper.GetString("kubeconfig")
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		panic(err)
@@ -54,39 +58,38 @@ func run(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
-	time.Sleep(time.Second * 2)
-	pl, err := clientset.CoreV1().Pods(apiv1.NamespaceDefault).List(metav1.ListOptions{
-		LabelSelector: "job-name=test-renzo",
+	go wait.PollImmediate(time.Second, 10*time.Second, func() (bool, error) {
+		pl, err := clientset.CoreV1().Pods(apiv1.NamespaceDefault).List(metav1.ListOptions{
+			LabelSelector: "job-name=test-renzo",
+		})
+
+		if err != nil {
+			panic(err)
+		}
+		if len(pl.Items) == 0 {
+			panic("pod not found")
+		}
+		pod := &pl.Items[0]
+		if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+			panic(fmt.Errorf("cannot attach into a container in a completed pod; current phase is %s", pod.Status.Phase))
+		}
+
+		if len(pod.Spec.Containers) != 1 {
+			panic("unexpected number of containers in trace job pod")
+		}
+
+		restClient := clientset.CoreV1().RESTClient().(*restclient.RESTClient)
+		containerName := pod.Spec.Containers[0].Name
+
+		attfn := defaultAttachFunc(restClient, pod.Name, containerName, config)
+
+		err = attfn()
+		if err != nil {
+			return false, nil
+		}
+
+		return true, nil
 	})
-
-	if err != nil {
-		panic(err)
-	}
-	if len(pl.Items) == 0 {
-		panic("pod not found")
-	}
-	pod := &pl.Items[0]
-
-	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
-		panic(fmt.Errorf("cannot attach into a container in a completed pod; current phase is %s", pod.Status.Phase))
-	}
-
-	if len(pod.Spec.Containers) != 1 {
-		panic("unexpected number of containers in trace job pod")
-	}
-
-	restClient := clientset.CoreV1().RESTClient().(*restclient.RESTClient)
-	containerName := pod.Spec.Containers[0].Name
-	attfn := defaultAttachFunc(restClient, pod.Name, containerName, config)
-
-	err = attfn()
-
-	if err != nil {
-		panic(err)
-	}
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
 
 	s := <-c
 	fmt.Println("signal:", s)

@@ -34,10 +34,14 @@ func init() {
 	// will be global for your application.
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kubectl-trace.yaml)")
 
-	// TODO(leodido): figure out this thing
+	// TODO(leodido): figure out how to use the flag from the main kubectl
+	// instead of having to recreate them like below
 	//parentConfigFlags = genericclioptions.ConfigFlags{}
 	//parentConfigFlags.AddFlags(rootCmd.PersistentFlags())
 
+	rootCmd.PersistentFlags().String("kubeconfig", "", "Path to the kubeconfig file to use for CLI requests.")
+	viper.BindPFlag("kubeconfig", rootCmd.PersistentFlags().Lookup("kubeconfig"))
+	viper.BindEnv("kubeconfig", "KUBECONFIG")
 	rootCmd.AddCommand(runCmd)
 }
 
@@ -58,8 +62,6 @@ func initConfig() {
 		viper.AddConfigPath(home)
 		viper.SetConfigName(".kubectl-trace")
 	}
-
-	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
