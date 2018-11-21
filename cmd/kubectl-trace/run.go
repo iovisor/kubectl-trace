@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/fntlnz/kubectl-trace/attacher"
-	"github.com/fntlnz/kubectl-trace/tracejob"
-	"github.com/influxdata/platform/kit/signals"
-	"github.com/influxdata/platform/snowflake"
+	"github.com/fntlnz/kubectl-trace/pkg/attacher"
+	"github.com/fntlnz/kubectl-trace/pkg/signals"
+	"github.com/fntlnz/kubectl-trace/pkg/tracejob"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/util/uuid"
 
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -64,8 +64,6 @@ func run(cmd *cobra.Command, args []string) {
 	}
 	node = args[0]
 
-	idgen := snowflake.NewIDGenerator()
-
 	ctx := context.Background()
 	ctx = signals.WithStandardSignals(ctx)
 
@@ -83,9 +81,11 @@ func run(cmd *cobra.Command, args []string) {
 
 	jobsClient := clientset.BatchV1().Jobs(namespace)
 
+	juid := uuid.NewUUID()
 	tj := &tracejob.TraceJob{
-		Name:         fmt.Sprintf("kubectl-trace-%s", idgen.ID()),
+		Name:         fmt.Sprintf("kubectl-trace-%s", string(juid)),
 		Namespace:    namespace,
+		ID:           string(juid),
 		Hostname:     node,
 		JobClient:    jobsClient,
 		ConfigClient: clientset.CoreV1().ConfigMaps(namespace),

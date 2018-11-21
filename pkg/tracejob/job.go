@@ -10,6 +10,7 @@ import (
 
 type TraceJob struct {
 	Name         string
+	ID           string
 	Namespace    string
 	Hostname     string
 	JobClient    batchv1typed.JobInterface
@@ -39,10 +40,12 @@ func (t *TraceJob) CreateJob(program string) (*batchv1.Job, error) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: t.Name,
 			Labels: map[string]string{
-				"fntlnz.wtf/kubectl-trace": t.Name,
+				"fntlnz.wtf/kubectl-trace":    t.Name,
+				"fntlnz.wtf/kubectl-trace-id": t.ID,
 			},
 			Annotations: map[string]string{
-				"fntlnz.wtf/kubectl-trace": t.Name,
+				"fntlnz.wtf/kubectl-trace":    t.Name,
+				"fntlnz.wtf/kubectl-trace-id": t.ID,
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -55,10 +58,12 @@ func (t *TraceJob) CreateJob(program string) (*batchv1.Job, error) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: t.Name,
 					Labels: map[string]string{
-						"fntlnz.wtf/kubectl-trace": t.Name,
+						"fntlnz.wtf/kubectl-trace":    t.Name,
+						"fntlnz.wtf/kubectl-trace-id": t.ID,
 					},
 					Annotations: map[string]string{
-						"fntlnz.wtf/kubectl-trace": t.Name,
+						"fntlnz.wtf/kubectl-trace":    t.Name,
+						"fntlnz.wtf/kubectl-trace-id": t.ID,
 					},
 				},
 				Spec: apiv1.PodSpec{
