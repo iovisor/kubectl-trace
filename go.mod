@@ -1,7 +1,6 @@
 module github.com/fntlnz/kubectl-trace
 
 require (
-	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/spdystream v0.0.0-20160310174837-449fdfce4d96 // indirect
 	github.com/elazarl/goproxy v0.0.0-20181111060418-2ce16c963a8a // indirect
 	github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c // indirect
