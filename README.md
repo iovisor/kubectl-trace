@@ -17,14 +17,14 @@ This will download and compile `kubectl-trace` so that you can use it as a kubec
 You don't need to setup anything on your cluster before using it, please don't use it already
 on a production system, just because this isn't yet 100% ready.
 
-**Run a progrma from string literal:**
+**Run a program from string literal:**
 
 ```
 kubectl trace run ip-180-12-0-152.ec2.internal -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }"
 ```
 
 
-**Run a progrma from file:**
+**Run a program from file:**
 
 ```
 kubectl trace run ip-180-12-0-152.ec2.internal -f read.bt
