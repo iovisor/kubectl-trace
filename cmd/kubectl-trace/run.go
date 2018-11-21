@@ -19,13 +19,13 @@ import (
 )
 
 var runCmd = &cobra.Command{
-	Use:   "run NODE [-e PROGRAM] [-f FILENAME] -n kubernetes-node-emt8.c.myproject.internal",
+	Use:   "run NODE [-e PROGRAM] [-f FILENAME] [-n NAMESPACE]",
 	Short: "Execute a bpftrace program against a NODE in your kubernetes cluster",
 	Long: `File names and programs are accepted.
 
 Examples:
   # Count system calls using tracepoints on a specific node
-  kubectl trace run kubernetes-node-emt8.c.myproject.internal -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }
+  kubectl trace run kubernetes-node-emt8.c.myproject.internal -e 'kprobe:do_sys_open { printf("%s: %s\n", comm, str(arg1)) }''
 
   # Execute a program from file on a specific node
   kubectl trace run kubernetes-node-emt8.c.myproject.internal -f read.bt

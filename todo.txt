@@ -1,4 +1,0 @@
-- list command to list running traces
-- run without attach
-- attach command to attach only
-- allow sending signals (probably requires a TTY), so that bpftrace commands can be notified to stop by the user before deletion and give back results
