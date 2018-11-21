@@ -13,7 +13,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	tcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
-	apiv1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	restclient "k8s.io/client-go/rest"
@@ -84,7 +83,7 @@ func (a *Attacher) Attach(selector, namespace string) {
 		restClient := a.CoreV1Client.RESTClient().(*restclient.RESTClient)
 		containerName := pod.Spec.Containers[0].Name
 
-		attfn := defaultAttachFunc(restClient, pod.Name, containerName, a.Config)
+		attfn := defaultAttachFunc(restClient, pod.Name, containerName, pod.Namespace, a.Config)
 
 		err = attfn()
 		if err != nil {
@@ -97,13 +96,13 @@ func (a *Attacher) Attach(selector, namespace string) {
 	<-a.ctx.Done()
 }
 
-func defaultAttachFunc(restClient *restclient.RESTClient, podName string, containerName string, config *restclient.Config) func() error {
+func defaultAttachFunc(restClient *restclient.RESTClient, podName string, containerName string, namespace string, config *restclient.Config) func() error {
 	raw := false
 	return func() error {
 		req := restClient.Post().
 			Resource("pods").
 			Name(podName).
-			Namespace(apiv1.NamespaceDefault).
+			Namespace(namespace).
 			SubResource("attach")
 		req.VersionedParams(&corev1.PodAttachOptions{
 			Container: containerName,
