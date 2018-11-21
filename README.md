@@ -20,14 +20,14 @@ on a production system, just because this isn't yet 100% ready.
 **Run a progrma from string literal:**
 
 ```
-kubectl trace run ip-180-12-0-152.ec2.interna -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }"
+kubectl trace run ip-180-12-0-152.ec2.internal -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }"
 ```
 
 
 **Run a progrma from file:**
 
 ```
-kubectl trace run ip-180-12-0-152.ec2.interna -f read.bt"
+kubectl trace run ip-180-12-0-152.ec2.internal -f read.bt
 ```
 
 Need more programs? Look [here](https://github.com/iovisor/bpftrace/tree/master/tools)
