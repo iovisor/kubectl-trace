@@ -5,42 +5,74 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	batchv1typed "k8s.io/client-go/kubernetes/typed/batch/v1"
+	corev1typed "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-func CreateJob(jobClient batchv1typed.JobInterface) (*batchv1.Job, error) {
+type TraceJob struct {
+	Name         string
+	Namespace    string
+	Hostname     string
+	JobClient    batchv1typed.JobInterface
+	ConfigClient corev1typed.ConfigMapInterface
+}
+
+// todo(fntlnz): deal with programs that needs the user to send a signal to complete,
+// like how the hist() function does
+// Will likely need to allocate a TTY for this one thing.
+func (t *TraceJob) CreateJob(program string) (*batchv1.Job, error) {
 	bpfTraceCmd := []string{
 		"bpftrace",
-		"-e",
-		`kprobe:do_sys_open { printf("%s: %s\n", comm, str(arg1)) }`,
+		"/programs/program.bt",
 	}
+
+	cm := &apiv1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      t.Name,
+			Namespace: t.Namespace,
+		},
+		Data: map[string]string{
+			"program.bt": program,
+		},
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-renzo",
+			Name: t.Name,
 			Labels: map[string]string{
-				"test": "renzo",
+				"fntlnz.wtf/kubectl-trace": t.Name,
 			},
 			Annotations: map[string]string{
-				"test": "renzo",
+				"fntlnz.wtf/kubectl-trace": t.Name,
 			},
 		},
 		Spec: batchv1.JobSpec{
 			TTLSecondsAfterFinished: int32Ptr(5),
 			Parallelism:             int32Ptr(1),
 			Completions:             int32Ptr(1),
-			ActiveDeadlineSeconds:   int64Ptr(100), // TODO(fntlnz): allow canceling from kubectl and increase this
+			ActiveDeadlineSeconds:   int64Ptr(100), // TODO(fntlnz): allow canceling from kubectl and increase this,
 			BackoffLimit:            int32Ptr(1),
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-renzo-pod",
+					Name: t.Name,
 					Labels: map[string]string{
-						"test": "renzo",
+						"fntlnz.wtf/kubectl-trace": t.Name,
 					},
 					Annotations: map[string]string{
-						"test": "renzo",
+						"fntlnz.wtf/kubectl-trace": t.Name,
 					},
 				},
 				Spec: apiv1.PodSpec{
 					Volumes: []apiv1.Volume{
+						apiv1.Volume{
+							Name: "program",
+							VolumeSource: apiv1.VolumeSource{
+								ConfigMap: &apiv1.ConfigMapVolumeSource{
+									LocalObjectReference: apiv1.LocalObjectReference{
+										Name: cm.Name,
+									},
+								},
+							},
+						},
 						apiv1.Volume{
 							Name: "modules",
 							VolumeSource: apiv1.VolumeSource{
@@ -60,10 +92,15 @@ func CreateJob(jobClient batchv1typed.JobInterface) (*batchv1.Job, error) {
 					},
 					Containers: []apiv1.Container{
 						apiv1.Container{
-							Name:    "test-renzo-container",
+							Name:    t.Name,
 							Image:   "quay.io/fntlnz/kubectl-trace-bpftrace:master",
 							Command: bpfTraceCmd,
 							VolumeMounts: []apiv1.VolumeMount{
+								apiv1.VolumeMount{
+									Name:      "program",
+									MountPath: "/programs",
+									ReadOnly:  true,
+								},
 								apiv1.VolumeMount{
 									Name:      "modules",
 									MountPath: "/lib/modules",
@@ -81,23 +118,32 @@ func CreateJob(jobClient batchv1typed.JobInterface) (*batchv1.Job, error) {
 						},
 					},
 					RestartPolicy: "Never",
-					NodeSelector:  map[string]string{
-						//"": "", // TODO(fntlnz): pass this thing
+					Affinity: &apiv1.Affinity{
+						NodeAffinity: &apiv1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &apiv1.NodeSelector{
+								NodeSelectorTerms: []apiv1.NodeSelectorTerm{
+									apiv1.NodeSelectorTerm{
+										MatchExpressions: []apiv1.NodeSelectorRequirement{
+											apiv1.NodeSelectorRequirement{
+												Key:      "kubernetes.io/hostname",
+												Operator: apiv1.NodeSelectorOpIn,
+												Values:   []string{t.Hostname},
+											},
+										},
+									},
+								},
+							},
+						},
 					},
-					//Affinity: &apiv1.Affinity{
-					//NodeAffinity: &apiv1.NodeAffinity{
-					//RequiredDuringSchedulingIgnoredDuringExecution: &apiv1.NodeSelector{
-					//NodeSelectorTerms: nil,
-					//},
-					//PreferredDuringSchedulingIgnoredDuringExecution: nil,
-					//},
-					//},
 				},
 			},
 		},
 	}
 
-	return jobClient.Create(job)
+	if _, err := t.ConfigClient.Create(cm); err != nil {
+		return nil, err
+	}
+	return t.JobClient.Create(job)
 }
 
 func int32Ptr(i int32) *int32 { return &i }
