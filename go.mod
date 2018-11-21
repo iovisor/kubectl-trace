@@ -1,29 +1,22 @@
 module github.com/fntlnz/kubectl-trace
 
 require (
-	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/spdystream v0.0.0-20160310174837-449fdfce4d96 // indirect
 	github.com/elazarl/goproxy v0.0.0-20181111060418-2ce16c963a8a // indirect
-	github.com/ghodss/yaml v1.0.0 // indirect
-	github.com/gogo/protobuf v1.1.1 // indirect
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c // indirect
 	github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf // indirect
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/gregjones/httpcache v0.0.0-20181110185634-c63ab54fda8f // indirect
-	github.com/imdario/mergo v0.3.6 // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/influxdata/platform v0.0.0-20181121005014-21e6c7bdce0d
 	github.com/json-iterator/go v1.1.5 // indirect
 	github.com/mitchellh/go-homedir v1.0.0
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/spf13/cobra v0.0.3
-	github.com/spf13/pflag v1.0.3 // indirect
 	github.com/spf13/viper v1.2.1
-	github.com/stretchr/testify v1.2.2 // indirect
+	go.uber.org/zap v1.9.1
 	golang.org/x/crypto v0.0.0-20181112202954-3d3f9f413869 // indirect
 	golang.org/x/net v0.0.0-20181114220301-adae6a3d119a // indirect
 	golang.org/x/oauth2 v0.0.0-20181106182150-f42d05182288 // indirect
