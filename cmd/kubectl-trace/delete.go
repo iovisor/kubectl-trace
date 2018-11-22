@@ -11,9 +11,10 @@ import (
 
 var deleteCmd = &cobra.Command{
 	Use:   "delete TRACEID",
-	Short: "",
-	Long:  "",
-	Run:   delete,
+	Short: "Delete a trace execution from your system",
+	Long: `Delete all the running pods that are collecting your trace data using bpftrace for a given TRACEID
+`,
+	Run: delete,
 }
 
 func delete(cmd *cobra.Command, args []string) {
