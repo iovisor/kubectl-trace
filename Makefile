@@ -11,7 +11,6 @@ GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
 IMAGE_BPFTRACE_BRANCH := quay.io/fntlnz/kubectl-trace-bpftrace:$(GIT_BRANCH_CLEAN)
 IMAGE_BPFTRACE_COMMIT := quay.io/fntlnz/kubectl-trace-bpftrace:$(GIT_COMMIT)
 
-
 IMAGE_BUILD_FLAGS ?= "--no-cache"
 
 kubectl_trace ?= _output/bin/kubectl-trace
@@ -20,7 +19,7 @@ kubectl_trace ?= _output/bin/kubectl-trace
 build: clean ${kubectl_trace}
 
 ${kubectl_trace}:
-	GO111MODULE=on $(GO) build -o $@ ./cmd/kubectl-trace
+	GO111MODULE=on $(GO) build -o $@ ./cmd
 
 .PHONY: clean
 clean:
