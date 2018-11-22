@@ -43,6 +43,7 @@ func init() {
 	viper.BindPFlag("kubeconfig", rootCmd.PersistentFlags().Lookup("kubeconfig"))
 	viper.BindEnv("kubeconfig", "KUBECONFIG")
 	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(deleteCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.

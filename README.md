@@ -40,6 +40,7 @@ To consider this project (ready) the goals are:
 
 - [x] basic program run and attach
 - [ ] list command to list running traces - command: `kubectl trace ls`
+- [x] delete running traces
 - [ ] run without attach
 - [ ] attach command to attach only - command: `kubectl trace attach <program>`
 - allow sending signals (probably requires a TTY), so that bpftrace commands can be notified to stop by the user before deletion and give back results

@@ -1,6 +1,8 @@
 package tracejob
 
 import (
+	"fmt"
+
 	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -8,64 +10,93 @@ import (
 	corev1typed "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-type TraceJob struct {
-	Name         string
-	ID           string
-	Namespace    string
-	Hostname     string
+type TraceJobClient struct {
 	JobClient    batchv1typed.JobInterface
 	ConfigClient corev1typed.ConfigMapInterface
+}
+
+type TraceJob struct {
+	Name      string
+	ID        string
+	Namespace string
+	Hostname  string
+	Program   string
+}
+
+func (t *TraceJobClient) DeleteJob(nj TraceJob) error {
+	selectorOptions := metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("fntlnz.wtf/kubectl-trace-id=%s", nj.ID),
+	}
+	jl, err := t.JobClient.List(selectorOptions)
+
+	if err != nil {
+		return err
+	}
+
+	for _, j := range jl.Items {
+		err := t.JobClient.Delete(j.Name, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	cl, err := t.ConfigClient.List(selectorOptions)
+
+	if err != nil {
+		return err
+	}
+
+	for _, c := range cl.Items {
+		err := t.ConfigClient.Delete(c.Name, nil)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // todo(fntlnz): deal with programs that needs the user to send a signal to complete,
 // like how the hist() function does
 // Will likely need to allocate a TTY for this one thing.
-func (t *TraceJob) CreateJob(program string) (*batchv1.Job, error) {
+func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 	bpfTraceCmd := []string{
 		"bpftrace",
 		"/programs/program.bt",
 	}
 
-	cm := &apiv1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      t.Name,
-			Namespace: t.Namespace,
+	commonMeta := metav1.ObjectMeta{
+		Name:      nj.Name,
+		Namespace: nj.Namespace,
+		Labels: map[string]string{
+			"fntlnz.wtf/kubectl-trace":    nj.Name,
+			"fntlnz.wtf/kubectl-trace-id": nj.ID,
 		},
+		Annotations: map[string]string{
+			"fntlnz.wtf/kubectl-trace":    nj.Name,
+			"fntlnz.wtf/kubectl-trace-id": nj.ID,
+		},
+	}
+
+	cm := &apiv1.ConfigMap{
+		ObjectMeta: commonMeta,
 		Data: map[string]string{
-			"program.bt": program,
+			"program.bt": nj.Program,
 		},
 	}
 
 	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: t.Name,
-			Labels: map[string]string{
-				"fntlnz.wtf/kubectl-trace":    t.Name,
-				"fntlnz.wtf/kubectl-trace-id": t.ID,
-			},
-			Annotations: map[string]string{
-				"fntlnz.wtf/kubectl-trace":    t.Name,
-				"fntlnz.wtf/kubectl-trace-id": t.ID,
-			},
-		},
+		ObjectMeta: commonMeta,
 		Spec: batchv1.JobSpec{
 			TTLSecondsAfterFinished: int32Ptr(5),
 			Parallelism:             int32Ptr(1),
 			Completions:             int32Ptr(1),
-			ActiveDeadlineSeconds:   int64Ptr(100), // TODO(fntlnz): allow canceling from kubectl and increase this,
-			BackoffLimit:            int32Ptr(1),
+			// This is why your tracing job is being killed after 100 seconds,
+			// someone should work on it to make it configurable and let it run
+			// indefinitely by default.
+			ActiveDeadlineSeconds: int64Ptr(100), // TODO(fntlnz): allow canceling from kubectl and increase this,
+			BackoffLimit:          int32Ptr(1),
 			Template: apiv1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: t.Name,
-					Labels: map[string]string{
-						"fntlnz.wtf/kubectl-trace":    t.Name,
-						"fntlnz.wtf/kubectl-trace-id": t.ID,
-					},
-					Annotations: map[string]string{
-						"fntlnz.wtf/kubectl-trace":    t.Name,
-						"fntlnz.wtf/kubectl-trace-id": t.ID,
-					},
-				},
+				ObjectMeta: commonMeta,
 				Spec: apiv1.PodSpec{
 					Volumes: []apiv1.Volume{
 						apiv1.Volume{
@@ -97,8 +128,8 @@ func (t *TraceJob) CreateJob(program string) (*batchv1.Job, error) {
 					},
 					Containers: []apiv1.Container{
 						apiv1.Container{
-							Name:    t.Name,
-							Image:   "quay.io/fntlnz/kubectl-trace-bpftrace:master",
+							Name:    nj.Name,
+							Image:   "quay.io/fntlnz/kubectl-trace-bpftrace:master", //TODO(fntlnz): yes this should be configurable!
 							Command: bpfTraceCmd,
 							VolumeMounts: []apiv1.VolumeMount{
 								apiv1.VolumeMount{
@@ -132,7 +163,7 @@ func (t *TraceJob) CreateJob(program string) (*batchv1.Job, error) {
 											apiv1.NodeSelectorRequirement{
 												Key:      "kubernetes.io/hostname",
 												Operator: apiv1.NodeSelectorOpIn,
-												Values:   []string{t.Hostname},
+												Values:   []string{nj.Hostname},
 											},
 										},
 									},

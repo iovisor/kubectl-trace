@@ -44,25 +44,24 @@ func init() {
 }
 
 func run(cmd *cobra.Command, args []string) {
-	logger, _ := zap.NewProduction()
-	defer logger.Sync()
+	log, _ := zap.NewProduction()
+	defer log.Sync()
 
 	if len(programfile) > 0 {
 		b, err := ioutil.ReadFile(programfile)
 		if err != nil {
-			logger.Fatal("error opening program file", zap.Error(err))
+			log.Fatal("error opening program file", zap.Error(err))
 		}
 		program = string(b)
 	}
 	if len(program) == 0 {
-		logger.Fatal("program not provided")
+		log.Fatal("program not provided")
 	}
 
-	node := ""
 	if len(args) == 0 {
-		logger.Fatal("node not provided")
+		log.Fatal("node not provided")
 	}
-	node = args[0]
+	node := args[0]
 
 	ctx := context.Background()
 	ctx = signals.WithStandardSignals(ctx)
@@ -71,32 +70,36 @@ func run(cmd *cobra.Command, args []string) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 
 	if err != nil {
-		logger.Fatal("cannot create kubernetes client from provider KUBECONFIG", zap.Error(err))
+		log.Fatal("cannot create kubernetes client from provider KUBECONFIG", zap.Error(err))
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		logger.Fatal("cannot create kubernetes config from provider KUBECONFIG", zap.Error(err))
+		log.Fatal("cannot create kubernetes config from provider KUBECONFIG", zap.Error(err))
 	}
 
 	jobsClient := clientset.BatchV1().Jobs(namespace)
 
 	juid := uuid.NewUUID()
-	tj := &tracejob.TraceJob{
-		Name:         fmt.Sprintf("kubectl-trace-%s", string(juid)),
-		Namespace:    namespace,
-		ID:           string(juid),
-		Hostname:     node,
+	tc := &tracejob.TraceJobClient{
 		JobClient:    jobsClient,
 		ConfigClient: clientset.CoreV1().ConfigMaps(namespace),
 	}
-	job, err := tj.CreateJob(program)
+
+	tj := tracejob.TraceJob{
+		Name:      fmt.Sprintf("kubectl-trace-%s", string(juid)),
+		Namespace: namespace,
+		ID:        string(juid),
+		Hostname:  node,
+		Program:   program,
+	}
+	job, err := tc.CreateJob(tj)
 	if err != nil {
-		logger.Fatal("cannot create kubernetes job client", zap.Error(err))
+		log.Fatal("cannot create kubernetes job client", zap.Error(err))
 	}
 
 	a := attacher.NewAttacher(clientset.CoreV1(), config)
-	a.WithLogger(logger)
+	a.WithLogger(log)
 	a.WithContext(ctx)
 
 	a.AttachJob(job.Name, job.Namespace)
