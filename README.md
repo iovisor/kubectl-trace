@@ -39,7 +39,7 @@ Some of them will not yet work because we don't attach with a TTY already, sorry
 To consider this project (ready) the goals are:
 
 - [x] basic program run and attach
-- [ ] list command to list running traces - command: `kubectl trace ls`
+- [x] list command to list running traces - command: `kubectl trace get`
 - [x] delete running traces
 - [ ] run without attach
 - [ ] attach command to attach only - command: `kubectl trace attach <program>`

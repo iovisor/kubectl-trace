@@ -7,12 +7,11 @@ import (
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	apiv1 "k8s.io/api/core/v1"
 	//"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 var cfgFile string
-
-//var parentConfigFlags genericclioptions.ConfigFlags
 
 var rootCmd = &cobra.Command{
 	Use:   "trace",
@@ -29,21 +28,18 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kubectl-trace.yaml)")
-
-	// TODO(leodido): figure out how to use the flag from the main kubectl
-	// instead of having to recreate them like below
-	//parentConfigFlags = genericclioptions.ConfigFlags{}
-	//parentConfigFlags.AddFlags(rootCmd.PersistentFlags())
 
 	rootCmd.PersistentFlags().String("kubeconfig", "", "Path to the kubeconfig file to use for CLI requests.")
 	viper.BindPFlag("kubeconfig", rootCmd.PersistentFlags().Lookup("kubeconfig"))
 	viper.BindEnv("kubeconfig", "KUBECONFIG")
+
+	rootCmd.PersistentFlags().StringP("namespace", "n", apiv1.NamespaceDefault, "If present, the namespace scope for this CLI request")
+	viper.BindPFlag("namespace", rootCmd.PersistentFlags().Lookup("namespace"))
+
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(deleteCmd)
+	rootCmd.AddCommand(getCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.

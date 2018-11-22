@@ -10,13 +10,13 @@ import (
 )
 
 var deleteCmd = &cobra.Command{
-	Use:   "delete TRACEID",
+	Use:   "delete NAME",
 	Short: "Delete a trace execution from your system",
-	Long: `Delete all the running pods that are collecting your trace data using bpftrace for a given TRACEID
+	Long: `Delete all the running pods that are collecting your trace data using bpftrace for a given NAME
 
 Example:
   # Delete a specific trace
-  kubectl trace delete 656ee75a-ee3c-11e8-9e7a-8c164500a77e
+  kubectl trace delete kubectl-trace-d5314890-ee4f-11e8-9684-8c164500a77e-sm4t2<Paste>
 
 Limitations:
   This command does not implement yet a way to bulk delete traces.
@@ -29,9 +29,9 @@ func delete(cmd *cobra.Command, args []string) {
 	defer log.Sync()
 
 	if len(args) == 0 {
-		log.Fatal("TRACEID not provided")
+		log.Fatal("NAME not provided")
 	}
-	uuid := args[0]
+	name := args[0]
 
 	kubeconfig := viper.GetString("kubeconfig")
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
@@ -45,6 +45,7 @@ func delete(cmd *cobra.Command, args []string) {
 		log.Fatal("cannot create kubernetes config from provider KUBECONFIG", zap.Error(err))
 	}
 
+	namespace := viper.GetString("namespace")
 	jobsClient := clientset.BatchV1().Jobs(namespace)
 
 	tc := &tracejob.TraceJobClient{
@@ -52,11 +53,11 @@ func delete(cmd *cobra.Command, args []string) {
 		ConfigClient: clientset.CoreV1().ConfigMaps(namespace),
 	}
 
-	tj := tracejob.TraceJob{
-		ID: uuid,
+	tf := tracejob.TraceJobFilter{
+		Name: &name,
 	}
 
-	err = tc.DeleteJob(tj)
+	err = tc.DeleteJob(tf)
 
 	if err != nil {
 		log.Fatal("error deleting trace execution from cluster", zap.Error(err))

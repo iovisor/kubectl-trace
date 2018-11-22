@@ -13,7 +13,6 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/util/uuid"
 
-	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -29,18 +28,22 @@ Examples:
 
   # Execute a program from file on a specific node
   kubectl trace run kubernetes-node-emt8.c.myproject.internal -f read.bt
+
+Limitations:
+  1. Right now this command lets you run bpftrace commands only on a specific node in your cluster,
+     the plan is to have this working for a node, a pod, a deployment, a statefulset.
+  2. Since there's no TTY attach (yet) it is not possible to run bpftrace commands that need an input
+     from the user in order to complete, like histograms, working on this is a priority for this project.
 `,
 	Run: run,
 }
 
 var program string
 var programfile string
-var namespace string
 
 func init() {
 	runCmd.Flags().StringVarP(&program, "program-literal", "e", "", "Literal string containing a bpftrace program")
 	runCmd.Flags().StringVarP(&programfile, "program-file", "f", "", "File containing a bpftrace program")
-	runCmd.Flags().StringVarP(&namespace, "namespace", "n", apiv1.NamespaceDefault, "Name of the node where to do the trace")
 }
 
 func run(cmd *cobra.Command, args []string) {
@@ -62,6 +65,8 @@ func run(cmd *cobra.Command, args []string) {
 		log.Fatal("node not provided")
 	}
 	node := args[0]
+
+	namespace := viper.GetString("namespace")
 
 	ctx := context.Background()
 	ctx = signals.WithStandardSignals(ctx)
