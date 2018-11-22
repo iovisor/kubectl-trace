@@ -70,6 +70,9 @@ func NewRunCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 			if err := o.Complete(factory, c, args); err != nil {
 				return err
 			}
+			if err := o.Run(); err != nil {
+				return err
+			}
 			return nil
 		},
 	}
@@ -122,12 +125,23 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 
 // Complete completes the setup of the command.
 func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
-	o.namespace, o.explicitNamespace, _ = factory.ToRawKubeConfigLoader().Namespace()
+	var err error
+	o.namespace, o.explicitNamespace, err = factory.ToRawKubeConfigLoader().Namespace()
+	if err != nil {
+		return err
+	}
 
 	spew.Dump(o)
+	b := factory.NewBuilder()
+	spew.Dump(b)
 
-	// get resource by pof | type/name
+	// get resource by pod | type/name
 	// get container
 
+	return nil
+}
+
+// Run executes the run command.
+func (o *RunOptions) Run() error {
 	return nil
 }

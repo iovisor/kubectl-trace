@@ -6,7 +6,6 @@ import (
 	"github.com/fntlnz/kubectl-trace/pkg/factory"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	// "k8s.io/kubernetes/pkg/kubectl/util/templates"
 )
 
 var (
@@ -74,6 +73,9 @@ func NewGetCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 			if err := o.Complete(factory, c, args); err != nil {
 				return err
 			}
+			if err := o.Run(); err != nil {
+				return err
+			}
 			return nil
 		},
 	}
@@ -100,16 +102,29 @@ func (o *GetOptions) Validate(cmd *cobra.Command, args []string) error {
 
 // Complete completes the setup of the command.
 func (o *GetOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
+	var err error
 	o.namespace, o.explicitNamespace, _ = factory.ToRawKubeConfigLoader().Namespace()
+	if err != nil {
+		return err
+	}
 
+	// All namespaces, when present, overrides namespace flag
 	if cmd.Flag("all-namespaces").Changed {
 		o.allNamespaces = *o.ResourceBuilderFlags.AllNamespaces
 		o.explicitNamespace = false
 		o.namespace = ""
 	}
+	// Need either a namespace, a trace ID, or all namespaces
 	if o.traceArg == "" && !o.allNamespaces && !o.explicitNamespace {
 		return fmt.Errorf(missingTargetErr)
 	}
 
+	// todo > init printers (need PrintFlags)
+
+	return nil
+}
+
+// Run executes the get command.
+func (o *GetOptions) Run() error {
 	return nil
 }
