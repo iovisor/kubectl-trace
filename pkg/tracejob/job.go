@@ -3,6 +3,7 @@ package tracejob
 import (
 	"fmt"
 
+	"github.com/fntlnz/kubectl-trace/pkg/meta"
 	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +26,7 @@ type TraceJob struct {
 
 func (t *TraceJobClient) DeleteJob(nj TraceJob) error {
 	selectorOptions := metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("fntlnz.wtf/kubectl-trace-id=%s", nj.ID),
+		LabelSelector: fmt.Sprintf("%s=%s", meta.TraceIDLabelKey, nj.ID),
 	}
 	jl, err := t.JobClient.List(selectorOptions)
 
@@ -71,12 +72,12 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 		Name:      nj.Name,
 		Namespace: nj.Namespace,
 		Labels: map[string]string{
-			"fntlnz.wtf/kubectl-trace":    nj.Name,
-			"fntlnz.wtf/kubectl-trace-id": nj.ID,
+			meta.TraceLabelKey:   nj.Name,
+			meta.TraceIDLabelKey: nj.ID,
 		},
 		Annotations: map[string]string{
-			"fntlnz.wtf/kubectl-trace":    nj.Name,
-			"fntlnz.wtf/kubectl-trace-id": nj.ID,
+			meta.TraceLabelKey:   nj.Name,
+			meta.TraceIDLabelKey: nj.ID,
 		},
 	}
 

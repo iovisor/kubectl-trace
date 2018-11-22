@@ -102,7 +102,7 @@ func run(cmd *cobra.Command, args []string) {
 	a.WithLogger(log)
 	a.WithContext(ctx)
 
-	a.AttachJob(job.Name, job.Namespace)
+	a.AttachJob(tj.ID, job.Namespace)
 
 	<-ctx.Done()
 }

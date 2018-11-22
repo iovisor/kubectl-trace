@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/fntlnz/kubectl-trace/pkg/meta"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -53,14 +54,13 @@ func (a *Attacher) WithContext(c context.Context) {
 	a.ctx = c
 }
 
-func (a *Attacher) AttachJob(jobName, namespace string) {
-	a.Attach(fmt.Sprintf("job-name=%s", jobName), namespace)
+func (a *Attacher) AttachJob(traceJobID string, namespace string) {
+	a.Attach(fmt.Sprintf("%s=%s", meta.TraceIDLabelKey, traceJobID), namespace)
 }
 
 func (a *Attacher) Attach(selector, namespace string) {
 	go wait.PollImmediate(time.Second, 10*time.Second, func() (bool, error) {
 		pl, err := a.CoreV1Client.Pods(namespace).List(metav1.ListOptions{
-			//LabelSelector: "job-name=test-renzo",
 			LabelSelector: selector,
 		})
 
