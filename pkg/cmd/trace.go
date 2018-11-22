@@ -3,13 +3,10 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/fntlnz/kubectl-trace/factory"
+	"github.com/fntlnz/kubectl-trace/pkg/factory"
 
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	// cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	// "k8s.io/kubernetes/pkg/kubectl/util/i18n"
-	// "k8s.io/kubectl/pkg/pluginutils"
 )
 
 // Possible resources include (case insensitive):

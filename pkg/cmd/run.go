@@ -4,10 +4,9 @@ import (
 	"fmt"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/fntlnz/kubectl-trace/factory"
+	"github.com/fntlnz/kubectl-trace/pkg/factory"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	// "k8s.io/kubernetes/pkg/kubectl/util/templates"
 )
 
 var (
@@ -37,7 +36,8 @@ var (
 type RunOptions struct {
 	genericclioptions.IOStreams
 
-	namespace string
+	namespace         string
+	explicitNamespace bool
 
 	// Local to this command
 	container   string
@@ -122,9 +122,7 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 
 // Complete completes the setup of the command.
 func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
-	spew.Dump(o)
-
-	o.namespace, _, _ = factory.ToRawKubeConfigLoader().Namespace()
+	o.namespace, o.explicitNamespace, _ = factory.ToRawKubeConfigLoader().Namespace()
 
 	spew.Dump(o)
 
