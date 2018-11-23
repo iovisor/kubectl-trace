@@ -7,6 +7,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	batchv1typed "k8s.io/client-go/kubernetes/typed/batch/v1"
 	corev1typed "k8s.io/client-go/kubernetes/typed/core/v1"
 )
@@ -140,44 +141,44 @@ func (t *TraceJobClient) DeleteJob(nf TraceJobFilter) error {
 	return nil
 }
 
-// todo(fntlnz): deal with programs that needs the user to send a signal to complete,
-// like how the hist() function does
-// Will likely need to allocate a TTY for this one thing.
-func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
-	bpfTraceCmd := []string{
+// Create setup a new Job for bpftrace program.
+func Create(j TraceJob) *batchv1.Job {
+	j.ID = string(uuid.NewUUID())
+	j.Name = fmt.Sprintf("%s%s", meta.TracePrefix, j.ID)
+
+	bpftraceCommand := []string{
 		"bpftrace",
 		"/programs/program.bt",
 	}
 
 	commonMeta := metav1.ObjectMeta{
-		Name:      nj.Name,
-		Namespace: nj.Namespace,
+		Name:      j.Name,
+		Namespace: j.Namespace,
 		Labels: map[string]string{
-			meta.TraceLabelKey:   nj.Name,
-			meta.TraceIDLabelKey: nj.ID,
+			meta.TraceLabelKey:   j.Name,
+			meta.TraceIDLabelKey: j.ID,
 		},
 		Annotations: map[string]string{
-			meta.TraceLabelKey:   nj.Name,
-			meta.TraceIDLabelKey: nj.ID,
+			meta.TraceLabelKey:   j.Name,
+			meta.TraceIDLabelKey: j.ID,
 		},
 	}
 
 	cm := &apiv1.ConfigMap{
 		ObjectMeta: commonMeta,
 		Data: map[string]string{
-			"program.bt": nj.Program,
+			"program.bt": j.Program,
 		},
 	}
 
-	job := &batchv1.Job{
+	return &batchv1.Job{
 		ObjectMeta: commonMeta,
 		Spec: batchv1.JobSpec{
 			TTLSecondsAfterFinished: int32Ptr(5),
 			Parallelism:             int32Ptr(1),
 			Completions:             int32Ptr(1),
 			// This is why your tracing job is being killed after 100 seconds,
-			// someone should work on it to make it configurable and let it run
-			// indefinitely by default.
+			// someone should work on it to make it configurable and let it run indefinitely by default.
 			ActiveDeadlineSeconds: int64Ptr(100), // TODO(fntlnz): allow canceling from kubectl and increase this,
 			BackoffLimit:          int32Ptr(1),
 			Template: apiv1.PodTemplateSpec{
@@ -213,11 +214,11 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 					},
 					Containers: []apiv1.Container{
 						apiv1.Container{
-							Name:    nj.Name,
+							Name:    j.Name,
 							Image:   "quay.io/fntlnz/kubectl-trace-bpftrace:master", //TODO(fntlnz): yes this should be configurable!
-							Command: bpfTraceCmd,
 							TTY:     true,
 							Stdin:   true,
+							Command: bpftraceCommand,
 							VolumeMounts: []apiv1.VolumeMount{
 								apiv1.VolumeMount{
 									Name:      "program",
@@ -250,7 +251,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 											apiv1.NodeSelectorRequirement{
 												Key:      "kubernetes.io/hostname",
 												Operator: apiv1.NodeSelectorOpIn,
-												Values:   []string{nj.Hostname},
+												Values:   []string{j.Hostname},
 											},
 										},
 									},
@@ -262,12 +263,18 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 			},
 		},
 	}
-
-	if _, err := t.ConfigClient.Create(cm); err != nil {
-		return nil, err
-	}
-	return t.JobClient.Create(job)
 }
+
+// todo(fntlnz): deal with programs that needs the user to send a signal to complete,
+// like how the hist() function does
+// Will likely need to allocate a TTY for this one thing.
+// func (t *TraceJobClient) CreateJob(j TraceJob) (*batchv1.Job, error) {
+
+// 	if _, err := t.ConfigClient.Create(cm); err != nil {
+// 		return nil, err
+// 	}
+// 	return t.JobClient.Create(job)
+// }
 
 func int32Ptr(i int32) *int32 { return &i }
 func int64Ptr(i int64) *int64 { return &i }

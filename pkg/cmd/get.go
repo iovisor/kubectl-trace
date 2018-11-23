@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fntlnz/kubectl-trace/pkg/factory"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -102,6 +103,7 @@ func (o *GetOptions) Validate(cmd *cobra.Command, args []string) error {
 
 // Complete completes the setup of the command.
 func (o *GetOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
+	// Prepare namespace
 	var err error
 	o.namespace, o.explicitNamespace, _ = factory.ToRawKubeConfigLoader().Namespace()
 	if err != nil {
@@ -119,12 +121,13 @@ func (o *GetOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 		return fmt.Errorf(missingTargetErr)
 	}
 
-	// todo > init printers (need PrintFlags)
+	// todo > init printers (need o.PrintFlags)
 
 	return nil
 }
 
 // Run executes the get command.
 func (o *GetOptions) Run() error {
+	spew.Dump(o)
 	return nil
 }
