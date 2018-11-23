@@ -216,6 +216,8 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 							Name:    nj.Name,
 							Image:   "quay.io/fntlnz/kubectl-trace-bpftrace:master", //TODO(fntlnz): yes this should be configurable!
 							Command: bpfTraceCmd,
+							TTY:     true,
+							Stdin:   true,
 							VolumeMounts: []apiv1.VolumeMount{
 								apiv1.VolumeMount{
 									Name:      "program",
