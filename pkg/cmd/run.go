@@ -225,6 +225,7 @@ func (o *RunOptions) Run() error {
 		return err
 	}
 
+	// todo > what to print here: this trace job all job trace jobs?
 	// o.print(_)
 	return nil
 }
