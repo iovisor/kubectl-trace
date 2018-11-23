@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/fntlnz/kubectl-trace/pkg/factory"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	// "k8s.io/kubernetes/pkg/kubectl/util/templates"
@@ -35,7 +36,7 @@ func NewDeleteOptions(streams genericclioptions.IOStreams) *DeleteOptions {
 }
 
 // NewDeleteCommand provides the delete command wrapping DeleteOptions.
-func NewDeleteCommand(streams genericclioptions.IOStreams) *cobra.Command {
+func NewDeleteCommand(factory factory.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewDeleteOptions(streams)
 
 	cmd := &cobra.Command{
@@ -43,7 +44,7 @@ func NewDeleteCommand(streams genericclioptions.IOStreams) *cobra.Command {
 		Short:   deleteShort,
 		Long:    deleteLong,                             // Wrap with templates.LongDesc()
 		Example: fmt.Sprintf(deleteExamples, "kubectl"), // Wrap with templates.Examples()
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, args []string) {
 			fmt.Println("delete")
 			spew.Dump(o)
 		},
