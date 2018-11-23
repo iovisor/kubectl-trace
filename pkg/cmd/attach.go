@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/fntlnz/kubectl-trace/pkg/factory"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	// "k8s.io/kubernetes/pkg/kubectl/util/templates"
 )
 
 var (
@@ -20,7 +20,7 @@ var (
   %[1]s trace attach -h
 
   # ...
-  %[1]s trace (...) attach`
+  %[1]s trace attach`
 )
 
 // AttachOptions ...
@@ -36,7 +36,7 @@ func NewAttachOptions(streams genericclioptions.IOStreams) *AttachOptions {
 }
 
 // NewAttachCommand provides the attach command wrapping AttachOptions.
-func NewAttachCommand(streams genericclioptions.IOStreams) *cobra.Command {
+func NewAttachCommand(factory factory.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewAttachOptions(streams)
 
 	cmd := &cobra.Command{

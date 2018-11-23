@@ -127,9 +127,9 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 	// todo > complete validation
 	// - make errors
 	// - make validators
-	if len(o.container) == 0 {
-		return fmt.Errorf("invalid container")
-	}
+	// if len(o.container) == 0 {
+	// 	return fmt.Errorf("invalid container")
+	// }
 
 	return nil
 }
