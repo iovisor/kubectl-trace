@@ -2,11 +2,17 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/fntlnz/kubectl-trace/pkg/factory"
+	"github.com/fntlnz/kubectl-trace/pkg/tracejob"
 	"github.com/spf13/cobra"
+	"k8s.io/api/core/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/kubernetes/scheme"
+
+	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
 )
 
 var (
@@ -23,6 +29,7 @@ var (
 
   # Run an bpftrace inline program on a pod container
   %[1]s trace run pod/nginx -c nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }"
+  %[1]s trace run pod/nginx nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }"
   %[1]s trace run pod/nginx nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }"`
 
 	runCommand                    = "run"
@@ -30,6 +37,8 @@ var (
 	requiredArgErrString          = fmt.Sprintf("%s is a required argument for the %s command", usageString, runCommand)
 	containerAsArgOrFlagErrString = "specify container inline as argument or via its flag"
 	bpftraceMissingErrString      = "the bpftrace program is mandatory"
+	bpftraceDoubleErrString       = "specify the bpftrace program either via an external file or via a literal string, not both"
+	bpftraceEmptyErrString        = "the bpftrace programm cannot be empty"
 )
 
 // RunOptions ...
@@ -44,6 +53,8 @@ type RunOptions struct {
 	eval        string
 	program     string
 	resourceArg string
+
+	client batchv1client.BatchV1Interface
 }
 
 // NewRunOptions provides an instance of RunOptions with default values.
@@ -86,19 +97,16 @@ func NewRunCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 
 // Validate validates the arguments and flags populating RunOptions accordingly.
 func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
-	containerDefined := cmd.Flag("container").Changed
+	containerFlagDefined := cmd.Flag("container").Changed
 	switch len(args) {
 	case 1:
 		o.resourceArg = args[0]
-		if !containerDefined {
-			return fmt.Errorf(containerAsArgOrFlagErrString)
-		}
 		break
 	// 2nd argument interpreted as container when provided
 	case 2:
 		o.resourceArg = args[0]
 		o.container = args[1]
-		if containerDefined {
+		if containerFlagDefined {
 			return fmt.Errorf(containerAsArgOrFlagErrString)
 		}
 		break
@@ -109,6 +117,12 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 	if !cmd.Flag("eval").Changed && !cmd.Flag("program").Changed {
 		return fmt.Errorf(bpftraceMissingErrString)
 	}
+	if cmd.Flag("eval").Changed == cmd.Flag("program").Changed {
+		return fmt.Errorf(bpftraceDoubleErrString)
+	}
+	if (cmd.Flag("eval").Changed && len(o.eval) == 0) || (cmd.Flag("program").Changed && len(o.program) == 0) {
+		return fmt.Errorf(bpftraceEmptyErrString)
+	}
 
 	// todo > complete validation
 	// - make errors
@@ -116,32 +130,101 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 	if len(o.container) == 0 {
 		return fmt.Errorf("invalid container")
 	}
-	// if len(o.eval) == 0 || file not exist(o.program) || file is empty(o.program) {
-	// 	return fmt.Errorf("invalid bpftrace program")
-	// }
 
 	return nil
 }
 
 // Complete completes the setup of the command.
 func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
+	// Prepare program
+	if len(o.program) > 0 {
+		b, err := ioutil.ReadFile(o.program)
+		if err != nil {
+			return fmt.Errorf("error opening program file")
+		}
+		o.program = string(b)
+	} else {
+		o.program = o.eval
+	}
+
+	// Prepare namespace
 	var err error
 	o.namespace, o.explicitNamespace, err = factory.ToRawKubeConfigLoader().Namespace()
 	if err != nil {
 		return err
 	}
 
-	spew.Dump(o)
-	b := factory.NewBuilder()
-	spew.Dump(b)
+	// Look for the target object
+	x := factory.
+		NewBuilder().
+		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		NamespaceParam(o.namespace).
+		SingleResourceType().
+		ResourceNames("pods", o.resourceArg). // Search pods by default
+		Do()
 
-	// get resource by pod | type/name
-	// get container
+	obj, err := x.Object()
+	if err != nil {
+		return err
+	}
+
+	spew.Dump(obj)
+
+	// Check we got a pod or a node
+	// isPod := false
+	switch obj.(type) {
+	case *v1.Pod:
+		// isPod = true
+		break
+	case *v1.Node:
+		break
+	default:
+		return fmt.Errorf("first argument must be %s", usageString)
+	}
+
+	// Check we also have container if we got a pod
+	// if o.container == "" && isPod {
+	// 	return fmt.Errorf("missing pod container")
+	// }
+
+	// Prepare client
+	clientConfig, err := factory.ToRESTConfig()
+	if err != nil {
+		return err
+	}
+	o.client, err = batchv1client.NewForConfig(clientConfig)
+	if err != nil {
+		return err
+	}
+
+	// todo > setup printer
+	// printer, err := o.PrintFlags.ToPrinter()
+	// if err != nil {
+	// 	return err
+	// }
+	// o.print = func(obj runtime.Object) error {
+	// 	return printer.PrintObj(obj, o.Out)
+	// }
 
 	return nil
 }
 
 // Run executes the run command.
 func (o *RunOptions) Run() error {
+	tj := tracejob.TraceJob{
+		Namespace: o.namespace,
+		Program:   o.program,
+		Hostname:  o.resourceArg,
+	}
+
+	spew.Dump(tj)
+	fmt.Println(o.container)
+
+	_, err := o.client.Jobs(o.namespace).Create(tracejob.Create(tj))
+	if err != nil {
+		return err
+	}
+
+	// o.print(_)
 	return nil
 }
