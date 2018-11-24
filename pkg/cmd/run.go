@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/fntlnz/kubectl-trace/pkg/factory"
 	"github.com/fntlnz/kubectl-trace/pkg/tracejob"
 	"github.com/spf13/cobra"
@@ -124,13 +123,6 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(bpftraceEmptyErrString)
 	}
 
-	// todo > complete validation
-	// - make errors
-	// - make validators
-	// if len(o.container) == 0 {
-	// 	return fmt.Errorf("invalid container")
-	// }
-
 	return nil
 }
 
@@ -168,13 +160,16 @@ func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 		return err
 	}
 
-	spew.Dump(obj)
-
 	// Check we got a pod or a node
 	// isPod := false
 	switch obj.(type) {
 	case *v1.Pod:
 		// isPod = true
+		// if len(o.container) == 0 {
+		// todo > get the default container or the first one, see https://github.com/fntlnz/kubectl-trace/pull/1#issuecomment-441331255
+		// } else {
+		// todo > check the pod has the provided container (o.container)
+		// }
 		return fmt.Errorf("running bpftrace programs against pods is not supported yet, see: https://github.com/fntlnz/kubectl-trace/issues/3")
 		break
 	case *v1.Node:
@@ -182,11 +177,6 @@ func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 	default:
 		return fmt.Errorf("first argument must be %s", usageString)
 	}
-
-	// Check we also have container if we got a pod
-	// if o.container == "" && isPod {
-	// 	return fmt.Errorf("missing pod container")
-	// }
 
 	// Prepare client
 	clientConfig, err := factory.ToRESTConfig()
@@ -203,17 +193,13 @@ func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 
 // Run executes the run command.
 func (o *RunOptions) Run() error {
-	tj := tracejob.TraceJob{
-		Namespace: o.namespace,
-		Program:   o.program,
-		Hostname:  o.resourceArg,
-	}
+	tj := tracejob.NewTraceJob(o.namespace, o.resourceArg, o.program)
 
-	_, err := o.client.Jobs(o.namespace).Create(tracejob.Create(tj))
+	_, err := o.client.Jobs(o.namespace).Create(tj.Object())
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(o.IOStreams.Out, "trace %s created\n", tj.ID)
+	fmt.Fprintf(o.IOStreams.Out, "trace %s created\n", tj.ID())
 	return nil
 }
