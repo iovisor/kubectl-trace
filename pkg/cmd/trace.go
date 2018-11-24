@@ -9,9 +9,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-// Possible resources include (case insensitive):
-//   pod (po), node
-
 var (
 	traceLong = `Configure, execute, and manage bpftrace programs.
 

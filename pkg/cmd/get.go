@@ -123,6 +123,15 @@ func (o *GetOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 
 	// todo > init printers (need o.PrintFlags)
 
+	// todo > setup printer
+	// printer, err := o.PrintFlags.ToPrinter()
+	// if err != nil {
+	// 	return err
+	// }
+	// o.print = func(obj runtime.Object) error {
+	// 	return printer.PrintObj(obj, o.Out)
+	// }
+
 	return nil
 }
 

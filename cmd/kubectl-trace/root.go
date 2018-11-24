@@ -1,67 +1,24 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
-	homedir "github.com/mitchellh/go-homedir"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	apiv1 "k8s.io/api/core/v1"
-	//"k8s.io/cli-runtime/pkg/genericclioptions"
+	"github.com/fntlnz/kubectl-trace/pkg/cmd"
+	"github.com/spf13/pflag"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-var cfgFile string
+func main() {
+	flags := pflag.NewFlagSet("kubectl-trace", pflag.ExitOnError)
+	pflag.CommandLine = flags
 
-var rootCmd = &cobra.Command{
-	Use:   "trace",
-	Short: "Execute and manage bpftrace programs on your kubernetes cluster",
-}
-
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+	streams := genericclioptions.IOStreams{
+		In:     os.Stdin,
+		Out:    os.Stdout,
+		ErrOut: os.Stderr,
+	}
+	root := cmd.NewTraceCommand(streams)
+	if err := root.Execute(); err != nil {
 		os.Exit(1)
-	}
-}
-
-func init() {
-	cobra.OnInitialize(initConfig)
-
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kubectl-trace.yaml)")
-
-	rootCmd.PersistentFlags().String("kubeconfig", "", "Path to the kubeconfig file to use for CLI requests.")
-	viper.BindPFlag("kubeconfig", rootCmd.PersistentFlags().Lookup("kubeconfig"))
-	viper.BindEnv("kubeconfig", "KUBECONFIG")
-
-	rootCmd.PersistentFlags().StringP("namespace", "n", apiv1.NamespaceDefault, "If present, the namespace scope for this CLI request")
-	viper.BindPFlag("namespace", rootCmd.PersistentFlags().Lookup("namespace"))
-
-	rootCmd.AddCommand(runCmd)
-	rootCmd.AddCommand(deleteCmd)
-	rootCmd.AddCommand(getCmd)
-}
-
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory.
-		home, err := homedir.Dir()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		// Search config in home directory with name ".kubectl-trace" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".kubectl-trace")
-	}
-
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
 }

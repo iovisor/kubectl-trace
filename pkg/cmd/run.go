@@ -175,6 +175,7 @@ func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 	switch obj.(type) {
 	case *v1.Pod:
 		// isPod = true
+		return fmt.Errorf("running bpftrace programs against pods is not supported yet, see: https://github.com/fntlnz/kubectl-trace/issues/3")
 		break
 	case *v1.Node:
 		break
@@ -197,15 +198,6 @@ func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 		return err
 	}
 
-	// todo > setup printer
-	// printer, err := o.PrintFlags.ToPrinter()
-	// if err != nil {
-	// 	return err
-	// }
-	// o.print = func(obj runtime.Object) error {
-	// 	return printer.PrintObj(obj, o.Out)
-	// }
-
 	return nil
 }
 
@@ -217,15 +209,11 @@ func (o *RunOptions) Run() error {
 		Hostname:  o.resourceArg,
 	}
 
-	spew.Dump(tj)
-	fmt.Println(o.container)
-
 	_, err := o.client.Jobs(o.namespace).Create(tracejob.Create(tj))
 	if err != nil {
 		return err
 	}
 
-	// todo > what to print here: this trace job all job trace jobs?
-	// o.print(_)
+	fmt.Fprintf(o.IOStreams.Out, "trace %s created\n", tj.ID)
 	return nil
 }
