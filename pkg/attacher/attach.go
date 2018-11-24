@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	tcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/kubernetes/pkg/kubectl/util/term"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -83,9 +84,12 @@ func (a *Attacher) Attach(selector, namespace string) {
 		restClient := a.CoreV1Client.RESTClient().(*restclient.RESTClient)
 		containerName := pod.Spec.Containers[0].Name
 
-		attfn := defaultAttachFunc(restClient, pod.Name, containerName, pod.Namespace, a.Config)
+		t, err := setupTTY(os.Stdout, os.Stdin)
+		if err != nil {
+			return false, err
+		}
+		err = t.Safe(defaultAttachFunc(restClient, pod.Name, containerName, pod.Namespace, a.Config, t))
 
-		err = attfn()
 		if err != nil {
 			a.logger.Warn("attach retry", zap.Error(err))
 			return false, nil
@@ -96,8 +100,7 @@ func (a *Attacher) Attach(selector, namespace string) {
 	<-a.ctx.Done()
 }
 
-func defaultAttachFunc(restClient *restclient.RESTClient, podName string, containerName string, namespace string, config *restclient.Config) func() error {
-	raw := false
+func defaultAttachFunc(restClient *restclient.RESTClient, podName string, containerName string, namespace string, config *restclient.Config, t term.TTY) func() error {
 	return func() error {
 		req := restClient.Post().
 			Resource("pods").
@@ -109,11 +112,11 @@ func defaultAttachFunc(restClient *restclient.RESTClient, podName string, contai
 			Stdin:     true,
 			Stdout:    true,
 			Stderr:    true,
-			TTY:       raw,
+			TTY:       t.Raw,
 		}, scheme.ParameterCodec)
 
 		att := &defaultRemoteAttach{}
-		return att.Attach("POST", req.URL(), config, os.Stdin, os.Stdout, os.Stderr, raw, nil)
+		return att.Attach("POST", req.URL(), config, t.In, t.Out, os.Stderr, t.Raw, t.MonitorSize(t.GetSize()))
 	}
 }
 
@@ -131,4 +134,18 @@ func (*defaultRemoteAttach) Attach(method string, url *url.URL, config *restclie
 		Tty:               tty,
 		TerminalSizeQueue: terminalSizeQueue,
 	})
+}
+
+func setupTTY(out io.Writer, in io.Reader) (term.TTY, error) {
+	t := term.TTY{
+		Out: out,
+		In:  in,
+		Raw: true,
+	}
+
+	if !t.IsTerminalIn() {
+		return t, fmt.Errorf("unable to use a TTY if the input is not a terminal")
+	}
+
+	return t, nil
 }
