@@ -44,5 +44,6 @@ require (
 	k8s.io/klog v0.1.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20181114233023-0317810137be // indirect
 	k8s.io/kubernetes v1.12.2
+	k8s.io/utils v0.0.0-20181115163542-0d26856f57b3
 	sigs.k8s.io/yaml v1.1.0 // indirect
 )
