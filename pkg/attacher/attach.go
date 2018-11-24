@@ -116,7 +116,16 @@ func defaultAttachFunc(restClient *restclient.RESTClient, podName string, contai
 		}, scheme.ParameterCodec)
 
 		att := &defaultRemoteAttach{}
-		return att.Attach("POST", req.URL(), config, t.In, t.Out, os.Stderr, t.Raw, t.MonitorSize(t.GetSize()))
+
+		// since the TTY is always in raw mode when attaching do a fake resize
+		// of the screen so that it will be redrawn during attach and detach
+		tsize := t.GetSize()
+		tsizeinc := *tsize
+		tsizeinc.Height++
+		tsizeinc.Width++
+
+		terminalSizeQueue := t.MonitorSize(&tsizeinc, tsize)
+		return att.Attach("POST", req.URL(), config, t.In, t.Out, os.Stderr, t.Raw, terminalSizeQueue)
 	}
 }
 
