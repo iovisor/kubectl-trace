@@ -2,7 +2,6 @@ module github.com/fntlnz/kubectl-trace
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
-	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/distribution v2.6.2+incompatible // indirect
 	github.com/docker/docker v0.7.3-0.20181124105010-0b7cb16dde4a // indirect
 	github.com/docker/spdystream v0.0.0-20160310174837-449fdfce4d96 // indirect
