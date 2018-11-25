@@ -90,7 +90,8 @@ func NewRunCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 				return err
 			}
 			if err := o.Run(); err != nil {
-				return err
+				fmt.Fprintln(o.ErrOut, err.Error())
+				return nil
 			}
 			return nil
 		},
