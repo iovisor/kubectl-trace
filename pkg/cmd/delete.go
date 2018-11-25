@@ -125,6 +125,9 @@ func (o *DeleteOptions) Complete(factory factory.Factory, cmd *cobra.Command, ar
 		return err
 	}
 
+	if o.traceID == nil && o.traceName == nil && o.all == false {
+		return fmt.Errorf("when no trace id or trace name are specified you must specify --all=true to delete all the traces")
+	}
 	return nil
 }
 

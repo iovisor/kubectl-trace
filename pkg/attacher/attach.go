@@ -54,9 +54,9 @@ func (a *Attacher) AttachJob(traceJobID types.UID, namespace string) {
 func (a *Attacher) Attach(selector, namespace string) {
 	go wait.ExponentialBackoff(wait.Backoff{
 		Duration: time.Second * 1,
-		Factor:   2,
-		Jitter:   0,
-		Steps:    10,
+		Factor:   0.01,
+		Jitter:   0.0,
+		Steps:    100,
 	}, func() (bool, error) {
 		pl, err := a.CoreV1Client.Pods(namespace).List(metav1.ListOptions{
 			LabelSelector: selector,
@@ -133,11 +133,14 @@ func (a attach) defaultAttachFunc() func() error {
 		// since the TTY is always in raw mode when attaching do a fake resize
 		// of the screen so that it will be redrawn during attach and detach
 		tsize := a.tty.GetSize()
-		tsizeinc := *tsize
-		tsizeinc.Height++
-		tsizeinc.Width++
+		var terminalSizeQueue remotecommand.TerminalSizeQueue
+		if tsize != nil {
+			tsizeinc := *tsize
+			tsizeinc.Height++
+			tsizeinc.Width++
+			terminalSizeQueue = a.tty.MonitorSize(&tsizeinc, tsize)
+		}
 
-		terminalSizeQueue := a.tty.MonitorSize(&tsizeinc, tsize)
 		return att.Attach("POST", req.URL(), a.config, a.tty.In, a.tty.Out, nil, a.tty.Raw, terminalSizeQueue)
 	}
 }
