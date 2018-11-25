@@ -30,7 +30,7 @@ var (
   %[1]s trace run node/kubernetes-node-emt8.c.myproject.internal -e 'kprobe:do_sys_open { printf("%s: %s\n", comm, str(arg1)) }'
 
   # Execute a bpftrace program from file on a specific node
-  %[1]s trace run node/kubernetes-node-emt8.c.myproject.internal -p read.bt
+  %[1]s trace run node/kubernetes-node-emt8.c.myproject.internal -f read.bt
 
   # Run an bpftrace inline program on a pod container
   %[1]s trace run pod/nginx -c nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }"
@@ -100,7 +100,7 @@ func NewRunCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 	cmd.Flags().StringVarP(&o.container, "container", "c", o.container, "Specify the container")
 	cmd.Flags().BoolVarP(&o.attach, "attach", "a", o.attach, "Wheter or not to attach to the trace program once it is created")
 	cmd.Flags().StringVarP(&o.eval, "eval", "e", "", "Literal string to be evaluated as a bpftrace program")
-	cmd.Flags().StringVarP(&o.program, "program", "p", "", "File containing a bpftrace program")
+	cmd.Flags().StringVarP(&o.program, "filename", "f", "", "File containing a bpftrace program")
 
 	return cmd
 }
@@ -124,13 +124,13 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(requiredArgErrString)
 	}
 
-	if !cmd.Flag("eval").Changed && !cmd.Flag("program").Changed {
+	if !cmd.Flag("eval").Changed && !cmd.Flag("filename").Changed {
 		return fmt.Errorf(bpftraceMissingErrString)
 	}
-	if cmd.Flag("eval").Changed == cmd.Flag("program").Changed {
+	if cmd.Flag("eval").Changed == cmd.Flag("filename").Changed {
 		return fmt.Errorf(bpftraceDoubleErrString)
 	}
-	if (cmd.Flag("eval").Changed && len(o.eval) == 0) || (cmd.Flag("program").Changed && len(o.program) == 0) {
+	if (cmd.Flag("eval").Changed && len(o.eval) == 0) || (cmd.Flag("filename").Changed && len(o.program) == 0) {
 		return fmt.Errorf(bpftraceEmptyErrString)
 	}
 
@@ -163,7 +163,7 @@ func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
 		NamespaceParam(o.namespace).
 		SingleResourceType().
-		ResourceNames("pods", o.resourceArg). // Search pods by default
+		ResourceNames("nodes", o.resourceArg). // Search nodes by default
 		Do()
 
 	obj, err := x.Object()

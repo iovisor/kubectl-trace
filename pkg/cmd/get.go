@@ -2,11 +2,18 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"text/tabwriter"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/fntlnz/kubectl-trace/pkg/factory"
+	"github.com/fntlnz/kubectl-trace/pkg/meta"
+	"github.com/fntlnz/kubectl-trace/pkg/tracejob"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 )
 
 var (
@@ -38,12 +45,14 @@ type GetOptions struct {
 	genericclioptions.IOStreams
 	ResourceBuilderFlags *genericclioptions.ResourceBuilderFlags
 
-	namespace         string
-	explicitNamespace bool
+	namespace string
 
 	// Local to this command
 	allNamespaces bool
 	traceArg      string
+	clientConfig  *rest.Config
+	traceID       *types.UID
+	traceName     *string
 }
 
 // NewGetOptions provides an instance of GetOptions with default values.
@@ -62,7 +71,7 @@ func NewGetCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 	o := NewGetOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:          fmt.Sprintf("%s [TRACE_ID]", getCommand),
+		Use:          fmt.Sprintf("%s (TRACE_ID | TRACE_NAME)", getCommand),
 		Short:        getShort,
 		Long:         getLong,                             // wrap with templates.LongDesc()
 		Example:      fmt.Sprintf(getExamples, "kubectl"), // wrap with templates.Examples()
@@ -87,26 +96,25 @@ func NewGetCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 	return cmd
 }
 
-// Validate validates the arguments and flags populating GetOptions accordingly.
 func (o *GetOptions) Validate(cmd *cobra.Command, args []string) error {
 	switch len(args) {
-	case 0:
-		break
 	case 1:
-		o.traceArg = args[0]
+		if meta.IsObjectName(args[0]) {
+			o.traceName = &args[0]
+		} else {
+			tid := types.UID(args[0])
+			o.traceID = &tid
+		}
 		break
-	default:
-		return fmt.Errorf(argumentsErr)
 	}
 
 	return nil
 }
 
-// Complete completes the setup of the command.
 func (o *GetOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
 	// Prepare namespace
 	var err error
-	o.namespace, o.explicitNamespace, _ = factory.ToRawKubeConfigLoader().Namespace()
+	o.namespace, _, err = factory.ToRawKubeConfigLoader().Namespace()
 	if err != nil {
 		return err
 	}
@@ -114,30 +122,71 @@ func (o *GetOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 	// All namespaces, when present, overrides namespace flag
 	if cmd.Flag("all-namespaces").Changed {
 		o.allNamespaces = *o.ResourceBuilderFlags.AllNamespaces
-		o.explicitNamespace = false
 		o.namespace = ""
 	}
-	// Need either a namespace, a trace ID, or all namespaces
-	if o.traceArg == "" && !o.allNamespaces && !o.explicitNamespace {
-		return fmt.Errorf(missingTargetErr)
+
+	//// Prepare client
+	o.clientConfig, err = factory.ToRESTConfig()
+	if err != nil {
+		return err
 	}
-
-	// todo > init printers (need o.PrintFlags)
-
-	// todo > setup printer
-	// printer, err := o.PrintFlags.ToPrinter()
-	// if err != nil {
-	// 	return err
-	// }
-	// o.print = func(obj runtime.Object) error {
-	// 	return printer.PrintObj(obj, o.Out)
-	// }
 
 	return nil
 }
 
-// Run executes the get command.
 func (o *GetOptions) Run() error {
-	spew.Dump(o)
+	jobsClient, err := batchv1client.NewForConfig(o.clientConfig)
+	if err != nil {
+		return err
+	}
+
+	coreClient, err := corev1client.NewForConfig(o.clientConfig)
+	if err != nil {
+		return err
+	}
+
+	tc := &tracejob.TraceJobClient{
+		JobClient:    jobsClient.Jobs(o.namespace),
+		ConfigClient: coreClient.ConfigMaps(o.namespace),
+	}
+
+	tc.WithOutStream(o.Out)
+
+	tf := tracejob.TraceJobFilter{
+		Name: o.traceName,
+		ID:   o.traceID,
+	}
+
+	jobs, err := tc.GetJob(tf)
+
+	if err != nil {
+		return err
+	}
+
+	// TODO: support other output formats via the o flag, like json, yaml. Not sure if a good idea, trace is not a resource in k8s
+	jobsTablePrint(o.Out, jobs)
 	return nil
+}
+
+// TODO(fntlnz): This needs better printing, perhaps we could use the humanreadable table from k8s itself
+// to be consistent with the main project.
+func jobsTablePrint(o io.Writer, jobs []tracejob.TraceJob) {
+	format := "%s\t%s\t%s\t%s\t%s\t"
+	if len(jobs) == 0 {
+		fmt.Println("No resources found.")
+		return
+	}
+	// initialize tabwriter
+	w := new(tabwriter.Writer)
+	// minwidth, tabwidth, padding, padchar, flags
+	w.Init(o, 8, 8, 0, '\t', 0)
+	defer w.Flush()
+
+	// TODO(fntlnz): Do the status and age fields, we don't have a way to get them now, so reporting
+	// them as missing.
+	fmt.Fprintf(w, format, "NAMESPACE", "NODE", "NAME", "STATUS", "AGE")
+	for _, j := range jobs {
+		fmt.Fprintf(w, "\n"+format, j.Namespace, j.Hostname, j.Name, "<missing>", "<missing>")
+	}
+	fmt.Fprintf(w, "\n")
 }
