@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/fntlnz/kubectl-trace/pkg/meta"
-	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	tcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -17,23 +16,24 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 )
 
 type Attacher struct {
+	genericclioptions.IOStreams
 	ctx          context.Context
 	CoreV1Client tcorev1.CoreV1Interface
-	logger       *zap.Logger
 	Config       *restclient.Config
 }
 
-func NewAttacher(client tcorev1.CoreV1Interface, config *restclient.Config) *Attacher {
+func NewAttacher(client tcorev1.CoreV1Interface, config *restclient.Config, streams genericclioptions.IOStreams) *Attacher {
 	return &Attacher{
 		CoreV1Client: client,
 		Config:       config,
-		logger:       zap.NewNop(),
 		ctx:          context.TODO(),
+		IOStreams:    streams,
 	}
 }
 
@@ -43,24 +43,21 @@ const (
 	invalidPodContainersSizeError = "unexpected number of containers in trace job pod"
 )
 
-func (a *Attacher) WithLogger(l *zap.Logger) {
-	if l == nil {
-		a.logger = zap.NewNop()
-		return
-	}
-	a.logger = l
-}
-
 func (a *Attacher) WithContext(c context.Context) {
 	a.ctx = c
 }
 
-func (a *Attacher) AttachJob(traceJobID string, namespace string) {
+func (a *Attacher) AttachJob(traceJobID types.UID, namespace string) {
 	a.Attach(fmt.Sprintf("%s=%s", meta.TraceIDLabelKey, traceJobID), namespace)
 }
 
 func (a *Attacher) Attach(selector, namespace string) {
-	go wait.PollImmediate(time.Second, 10*time.Second, func() (bool, error) {
+	go wait.ExponentialBackoff(wait.Backoff{
+		Duration: time.Second * 1,
+		Factor:   2,
+		Jitter:   0,
+		Steps:    10,
+	}, func() (bool, error) {
 		pl, err := a.CoreV1Client.Pods(namespace).List(metav1.ListOptions{
 			LabelSelector: selector,
 		})
@@ -84,48 +81,64 @@ func (a *Attacher) Attach(selector, namespace string) {
 		restClient := a.CoreV1Client.RESTClient().(*restclient.RESTClient)
 		containerName := pod.Spec.Containers[0].Name
 
-		t, err := setupTTY(os.Stdout, os.Stdin)
+		t, err := setupTTY(a.IOStreams.Out, a.IOStreams.In)
 		if err != nil {
 			return false, err
 		}
-		err = t.Safe(defaultAttachFunc(restClient, pod.Name, containerName, pod.Namespace, a.Config, t))
+		ao := attach{
+			restClient:    restClient,
+			podName:       pod.Name,
+			namespace:     pod.Namespace,
+			containerName: containerName,
+			config:        a.Config,
+			tty:           t,
+		}
+		err = t.Safe(ao.defaultAttachFunc())
 
 		if err != nil {
-			a.logger.Warn("attach retry", zap.Error(err))
+			// on error, just send false so that the backoff mechanism can do a new tentative
 			return false, nil
 		}
-
 		return true, nil
 	})
 	<-a.ctx.Done()
 }
 
-func defaultAttachFunc(restClient *restclient.RESTClient, podName string, containerName string, namespace string, config *restclient.Config, t term.TTY) func() error {
+type attach struct {
+	restClient    *restclient.RESTClient
+	podName       string
+	containerName string
+	namespace     string
+	config        *restclient.Config
+	tty           term.TTY
+}
+
+func (a attach) defaultAttachFunc() func() error {
 	return func() error {
-		req := restClient.Post().
+		req := a.restClient.Post().
 			Resource("pods").
-			Name(podName).
-			Namespace(namespace).
+			Name(a.podName).
+			Namespace(a.namespace).
 			SubResource("attach")
 		req.VersionedParams(&corev1.PodAttachOptions{
-			Container: containerName,
+			Container: a.containerName,
 			Stdin:     true,
 			Stdout:    true,
-			Stderr:    true,
-			TTY:       t.Raw,
+			Stderr:    false,
+			TTY:       a.tty.Raw,
 		}, scheme.ParameterCodec)
 
 		att := &defaultRemoteAttach{}
 
 		// since the TTY is always in raw mode when attaching do a fake resize
 		// of the screen so that it will be redrawn during attach and detach
-		tsize := t.GetSize()
+		tsize := a.tty.GetSize()
 		tsizeinc := *tsize
 		tsizeinc.Height++
 		tsizeinc.Width++
 
-		terminalSizeQueue := t.MonitorSize(&tsizeinc, tsize)
-		return att.Attach("POST", req.URL(), config, t.In, t.Out, os.Stderr, t.Raw, terminalSizeQueue)
+		terminalSizeQueue := a.tty.MonitorSize(&tsizeinc, tsize)
+		return att.Attach("POST", req.URL(), a.config, a.tty.In, a.tty.Out, nil, a.tty.Raw, terminalSizeQueue)
 	}
 }
 
