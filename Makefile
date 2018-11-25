@@ -19,7 +19,7 @@ kubectl_trace ?= _output/bin/kubectl-trace
 build: clean ${kubectl_trace}
 
 ${kubectl_trace}:
-	GO111MODULE=on $(GO) build -o $@ ./cmd/kubectl-trace
+	$(GO) build -o $@ ./cmd/kubectl-trace
 
 .PHONY: clean
 clean:
