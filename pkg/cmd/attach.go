@@ -1,12 +1,20 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/fntlnz/kubectl-trace/pkg/attacher"
 	"github.com/fntlnz/kubectl-trace/pkg/factory"
+	"github.com/fntlnz/kubectl-trace/pkg/meta"
+	"github.com/fntlnz/kubectl-trace/pkg/signals"
+	"github.com/fntlnz/kubectl-trace/pkg/tracejob"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 )
 
 var (
@@ -26,6 +34,10 @@ var (
 // AttachOptions ...
 type AttachOptions struct {
 	genericclioptions.IOStreams
+	traceID      *types.UID
+	traceName    *string
+	namespace    string
+	clientConfig *rest.Config
 }
 
 // NewAttachOptions provides an instance of AttachOptions with default values.
@@ -40,16 +52,99 @@ func NewAttachCommand(factory factory.Factory, streams genericclioptions.IOStrea
 	o := NewAttachOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:                   "attach TRACE_ID",
+		Use:                   "attach (TRACE_ID | TRACE_NAME)",
 		DisableFlagsInUseLine: true,
 		Short:                 attachShort,
 		Long:                  attachLong,                             // Wrap with templates.LongDesc()
 		Example:               fmt.Sprintf(attachExamples, "kubectl"), // Wrap with templates.Examples()
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("attach")
-			spew.Dump(o)
+		PreRunE: func(c *cobra.Command, args []string) error {
+			return o.Validate(c, args)
+		},
+		RunE: func(c *cobra.Command, args []string) error {
+			if err := o.Complete(factory, c, args); err != nil {
+				return err
+			}
+			if err := o.Run(); err != nil {
+				fmt.Fprintln(o.ErrOut, err.Error())
+				return nil
+			}
+			return nil
 		},
 	}
 
 	return cmd
+}
+
+func (o *AttachOptions) Validate(cmd *cobra.Command, args []string) error {
+	switch len(args) {
+	case 1:
+		if meta.IsObjectName(args[0]) {
+			o.traceName = &args[0]
+		} else {
+			tid := types.UID(args[0])
+			o.traceID = &tid
+		}
+		break
+	default:
+		return fmt.Errorf("(TRACE_ID | TRACE_NAME) is a required argument for the attach command")
+	}
+
+	return nil
+}
+
+func (o *AttachOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
+	// Prepare namespace
+	var err error
+	o.namespace, _, err = factory.ToRawKubeConfigLoader().Namespace()
+	if err != nil {
+		return err
+	}
+
+	//// Prepare client
+	o.clientConfig, err = factory.ToRESTConfig()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (o *AttachOptions) Run() error {
+	jobsClient, err := batchv1client.NewForConfig(o.clientConfig)
+	if err != nil {
+		return err
+	}
+
+	coreClient, err := corev1client.NewForConfig(o.clientConfig)
+	if err != nil {
+		return err
+	}
+
+	tc := &tracejob.TraceJobClient{
+		JobClient: jobsClient.Jobs(o.namespace),
+	}
+
+	tf := tracejob.TraceJobFilter{
+		Name: o.traceName,
+		ID:   o.traceID,
+	}
+
+	jobs, err := tc.GetJob(tf)
+
+	if err != nil {
+		return err
+	}
+
+	if len(jobs) == 0 {
+		return fmt.Errorf("no trace found with the provided criterias")
+	}
+
+	job := jobs[0]
+
+	ctx := context.Background()
+	ctx = signals.WithStandardSignals(ctx)
+	a := attacher.NewAttacher(coreClient, o.clientConfig, o.IOStreams)
+	a.WithContext(ctx)
+	a.AttachJob(job.ID, job.Namespace)
+	return nil
 }

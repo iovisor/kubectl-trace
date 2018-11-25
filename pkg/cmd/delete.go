@@ -27,7 +27,7 @@ var (
   %[1]s trace delete kubectl-trace-1bb3ae39-efe8-11e8-9f29-8c164500a77e
 
   # Delete all bpftrace programs in a specific namespace
-  %[1]s trace delete -n myns"`
+  %[1]s trace delete -n myns --all`
 )
 
 // DeleteOptions ...
