@@ -37,6 +37,8 @@ Some of them will not yet work because we don't attach with a TTY already, sorry
 
 ## Status of the project
 
+:trophy: All the MVP goals are done!
+
 To consider this project (ready) the goals are:
 
 - [x] basic program run and attach
@@ -44,7 +46,7 @@ To consider this project (ready) the goals are:
 - [x] delete running traces
 - [x] run without attach
 - [x] attach command to attach only - command: `kubectl trace attach <program>`
-- allow sending signals (probably requires a TTY), so that bpftrace commands can be notified to stop by the user before deletion and give back results
+- [x] allow sending signals (probably requires a TTY), so that bpftrace commands can be notified to stop by the user before deletion and give back results
 
 
 **More things after the MVP:**
@@ -52,14 +54,16 @@ To consider this project (ready) the goals are:
 The program is now limited to run programs only on your nodes but the idea is to have the ability to attach only to the user namespace of a pod, like:
 
 ```
-kubectl trace run <pod-name>
+kubectl trace run pod/<pod-name> -f read.bt
 ```
 
 And even on a specific container
 
 ```
-kubectl trace run <pod-name> -c <container>
+kubectl trace run pod/<pod-name> -c <container> f read.bt
 ```
+
+So I would say, the next thing is to run bpftrace programs at a pod scope other than at node scope.
 
 **bpftrace work**
 
