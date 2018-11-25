@@ -3,6 +3,9 @@ package tracejob
 import (
 	"fmt"
 
+	"io"
+	"io/ioutil"
+
 	"github.com/fntlnz/kubectl-trace/pkg/meta"
 	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"
@@ -15,6 +18,7 @@ import (
 type TraceJobClient struct {
 	JobClient    batchv1typed.JobInterface
 	ConfigClient corev1typed.ConfigMapInterface
+	outStream    io.Writer
 }
 
 type TraceJob struct {
@@ -23,6 +27,14 @@ type TraceJob struct {
 	Namespace string
 	Hostname  string
 	Program   string
+}
+
+// WithOutStream setup a file stream to output trace job operation information
+func (t *TraceJobClient) WithOutStream(o io.Writer) {
+	if o == nil {
+		t.outStream = ioutil.Discard
+	}
+	t.outStream = o
 }
 
 type TraceJobFilter struct {
@@ -110,7 +122,8 @@ func (t *TraceJobClient) GetJob(nf TraceJobFilter) ([]TraceJob, error) {
 	return tjobs, nil
 }
 
-func (t *TraceJobClient) DeleteJob(nf TraceJobFilter) error {
+func (t *TraceJobClient) DeleteJobs(nf TraceJobFilter) error {
+	nothingDeleted := true
 	jl, err := t.findJobsWithFilter(nf)
 	if err != nil {
 		return err
@@ -124,6 +137,8 @@ func (t *TraceJobClient) DeleteJob(nf TraceJobFilter) error {
 		if err != nil {
 			return err
 		}
+		fmt.Fprintf(t.outStream, "trace job %s deleted\n", j.Name)
+		nothingDeleted = false
 	}
 
 	cl, err := t.findConfigMapsWithFilter(nf)
@@ -137,6 +152,12 @@ func (t *TraceJobClient) DeleteJob(nf TraceJobFilter) error {
 		if err != nil {
 			return err
 		}
+		fmt.Fprintf(t.outStream, "trace configuration %s deleted\n", c.Name)
+		nothingDeleted = false
+	}
+
+	if nothingDeleted {
+		fmt.Fprintf(t.outStream, "error: no trace found to be deleted\n")
 	}
 	return nil
 }
