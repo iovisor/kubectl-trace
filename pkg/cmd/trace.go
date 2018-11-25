@@ -16,7 +16,7 @@ These commands help you trace existing application resources.
 	`
 	traceExamples = `
   # Execute a bpftrace program from file on a specific node
-  %[1]s trace run kubernetes-node-emt8.c.myproject.internal -p read.bt
+  %[1]s trace run kubernetes-node-emt8.c.myproject.internal -f read.bt
 
   # Get all bpftrace programs in all namespaces
   %[1]s trace get --all-namespaces

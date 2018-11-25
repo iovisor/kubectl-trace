@@ -27,24 +27,34 @@ var (
   %[1]s trace delete kubectl-trace-1bb3ae39-efe8-11e8-9f29-8c164500a77e
 
   # Delete all bpftrace programs in a specific namespace
-  %[1]s trace delete -n myns --all`
+  %[1]s trace delete -n myns --all
+
+  # Delete all bpftrace programs in all the namespaces
+  %[1]s trace delete --all-namespaces`
 )
 
 // DeleteOptions ...
 type DeleteOptions struct {
 	genericclioptions.IOStreams
-	traceID      *types.UID
-	traceName    *string
-	namespace    string
-	clientConfig *rest.Config
-	all          bool
+	ResourceBuilderFlags *genericclioptions.ResourceBuilderFlags
+	traceID              *types.UID
+	traceName            *string
+	namespace            string
+	clientConfig         *rest.Config
+	all                  bool
+	allNamespaces        bool
 }
 
 // NewDeleteOptions provides an instance of DeleteOptions with default values.
 func NewDeleteOptions(streams genericclioptions.IOStreams) *DeleteOptions {
+	rbFlags := &genericclioptions.ResourceBuilderFlags{}
+	rbFlags.WithAllNamespaces(false)
+	rbFlags.WithAll(false)
+
 	return &DeleteOptions{
-		IOStreams: streams,
-		all:       false,
+		ResourceBuilderFlags: rbFlags,
+		IOStreams:            streams,
+		all:                  false,
 	}
 }
 
@@ -53,7 +63,7 @@ func NewDeleteCommand(factory factory.Factory, streams genericclioptions.IOStrea
 	o := NewDeleteOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:     "delete [TRACE_ID] [--all]",
+		Use:     "delete (TRACE_ID | TRACE_NAME)",
 		Short:   deleteShort,
 		Long:    deleteLong,                             // Wrap with templates.LongDesc()
 		Example: fmt.Sprintf(deleteExamples, "kubectl"), // Wrap with templates.Examples()
@@ -72,7 +82,7 @@ func NewDeleteCommand(factory factory.Factory, streams genericclioptions.IOStrea
 		},
 	}
 
-	cmd.Flags().BoolVar(&o.all, "all", o.all, "Delete all trace jobs in the provided namespace")
+	o.ResourceBuilderFlags.AddFlags(cmd.Flags())
 
 	return cmd
 }
@@ -87,10 +97,6 @@ func (o *DeleteOptions) Validate(cmd *cobra.Command, args []string) error {
 			o.traceID = &tid
 		}
 		break
-	default:
-		if o.all == false {
-			return fmt.Errorf("--all=true must be specified to delete all the trace programs in a namespace\n%s", requiredArgErrString)
-		}
 	}
 
 	return nil
@@ -102,6 +108,15 @@ func (o *DeleteOptions) Complete(factory factory.Factory, cmd *cobra.Command, ar
 	o.namespace, _, err = factory.ToRawKubeConfigLoader().Namespace()
 	if err != nil {
 		return err
+	}
+
+	if cmd.Flag("all-namespaces").Changed {
+		o.allNamespaces = *o.ResourceBuilderFlags.AllNamespaces
+		o.namespace = ""
+	}
+
+	if cmd.Flag("all").Changed {
+		o.all = *o.ResourceBuilderFlags.All
 	}
 
 	//// Prepare client

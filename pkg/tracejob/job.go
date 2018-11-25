@@ -132,7 +132,8 @@ func (t *TraceJobClient) DeleteJobs(nf TraceJobFilter) error {
 	dp := metav1.DeletePropagationForeground
 	for _, j := range jl {
 		err := t.JobClient.Delete(j.Name, &metav1.DeleteOptions{
-			PropagationPolicy: &dp,
+			GracePeriodSeconds: int64Ptr(0),
+			PropagationPolicy:  &dp,
 		})
 		if err != nil {
 			return err
