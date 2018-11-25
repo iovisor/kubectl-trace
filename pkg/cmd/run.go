@@ -1,17 +1,23 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 
+	"github.com/fntlnz/kubectl-trace/pkg/attacher"
 	"github.com/fntlnz/kubectl-trace/pkg/factory"
+	"github.com/fntlnz/kubectl-trace/pkg/meta"
+	"github.com/fntlnz/kubectl-trace/pkg/signals"
 	"github.com/fntlnz/kubectl-trace/pkg/tracejob"
 	"github.com/spf13/cobra"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes/scheme"
-
 	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 )
 
 var (
@@ -52,8 +58,11 @@ type RunOptions struct {
 	eval        string
 	program     string
 	resourceArg string
+	attach      bool
 
-	client batchv1client.BatchV1Interface
+	nodeName string
+
+	clientConfig *rest.Config
 }
 
 // NewRunOptions provides an instance of RunOptions with default values.
@@ -68,7 +77,7 @@ func NewRunCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 	o := NewRunOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:          fmt.Sprintf("%s %s [-c CONTAINER]", runCommand, usageString),
+		Use:          fmt.Sprintf("%s %s [-c CONTAINER] [--attach]", runCommand, usageString),
 		Short:        runShort,
 		Long:         runLong,                             // Wrap with templates.LongDesc()
 		Example:      fmt.Sprintf(runExamples, "kubectl"), // Wrap with templates.Examples()
@@ -88,6 +97,7 @@ func NewRunCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 	}
 
 	cmd.Flags().StringVarP(&o.container, "container", "c", o.container, "Specify the container")
+	cmd.Flags().BoolVarP(&o.attach, "attach", "a", o.attach, "Wheter or not to attach to the trace program once it is created")
 	cmd.Flags().StringVarP(&o.eval, "eval", "e", "", "Literal string to be evaluated as a bpftrace program")
 	cmd.Flags().StringVarP(&o.program, "program", "p", "", "File containing a bpftrace program")
 
@@ -162,7 +172,7 @@ func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 
 	// Check we got a pod or a node
 	// isPod := false
-	switch obj.(type) {
+	switch v := obj.(type) {
 	case *v1.Pod:
 		// isPod = true
 		// if len(o.container) == 0 {
@@ -173,17 +183,14 @@ func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 		return fmt.Errorf("running bpftrace programs against pods is not supported yet, see: https://github.com/fntlnz/kubectl-trace/issues/3")
 		break
 	case *v1.Node:
+		o.nodeName = v.GetName()
 		break
 	default:
 		return fmt.Errorf("first argument must be %s", usageString)
 	}
 
 	// Prepare client
-	clientConfig, err := factory.ToRESTConfig()
-	if err != nil {
-		return err
-	}
-	o.client, err = batchv1client.NewForConfig(clientConfig)
+	o.clientConfig, err = factory.ToRESTConfig()
 	if err != nil {
 		return err
 	}
@@ -193,13 +200,44 @@ func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 
 // Run executes the run command.
 func (o *RunOptions) Run() error {
-	tj := tracejob.NewTraceJob(o.namespace, o.resourceArg, o.program)
-
-	_, err := o.client.Jobs(o.namespace).Create(tj.Object())
+	juid := uuid.NewUUID()
+	jobsClient, err := batchv1client.NewForConfig(o.clientConfig)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(o.IOStreams.Out, "trace %s created\n", tj.ID())
+	coreClient, err := corev1client.NewForConfig(o.clientConfig)
+	if err != nil {
+		return err
+	}
+
+	tc := &tracejob.TraceJobClient{
+		JobClient:    jobsClient.Jobs(o.namespace),
+		ConfigClient: coreClient.ConfigMaps(o.namespace),
+	}
+
+	tj := tracejob.TraceJob{
+		Name:      fmt.Sprintf("%s%s", meta.ObjectNamePrefix, string(juid)),
+		Namespace: o.namespace,
+		ID:        juid,
+		Hostname:  o.nodeName,
+		Program:   o.program,
+	}
+
+	job, err := tc.CreateJob(tj)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(o.IOStreams.Out, "trace %s created\n", tj.ID)
+
+	if o.attach {
+		ctx := context.Background()
+		ctx = signals.WithStandardSignals(ctx)
+		a := attacher.NewAttacher(coreClient, o.clientConfig, o.IOStreams)
+		a.WithContext(ctx)
+		a.AttachJob(tj.ID, job.Namespace)
+	}
+
 	return nil
 }
