@@ -184,7 +184,12 @@ func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 		return fmt.Errorf("running bpftrace programs against pods is not supported yet, see: https://github.com/fntlnz/kubectl-trace/issues/3")
 		break
 	case *v1.Node:
-		o.nodeName = v.GetName()
+		labels := v.GetLabels()
+		val, ok := labels["kubernetes.io/hostname"]
+		if !ok {
+			return fmt.Errorf("label kubernetes.io/hostname not found in node")
+		}
+		o.nodeName = val
 		break
 	default:
 		return fmt.Errorf("first argument must be %s", usageString)
