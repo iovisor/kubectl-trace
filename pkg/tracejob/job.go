@@ -42,7 +42,7 @@ type TraceJobFilter struct {
 	ID   *types.UID
 }
 
-func (t *TraceJobClient) findJobsWithFilter(nf TraceJobFilter) ([]batchv1.Job, error) {
+func (nf TraceJobFilter) selectorOptions() metav1.ListOptions {
 	selectorOptions := metav1.ListOptions{}
 
 	if nf.Name != nil {
@@ -55,6 +55,22 @@ func (t *TraceJobClient) findJobsWithFilter(nf TraceJobFilter) ([]batchv1.Job, e
 		selectorOptions = metav1.ListOptions{
 			LabelSelector: fmt.Sprintf("%s=%s", meta.TraceIDLabelKey, *nf.ID),
 		}
+	}
+
+	if nf.Name == nil && nf.ID == nil {
+		selectorOptions = metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s", meta.TraceIDLabelKey),
+		}
+	}
+
+	return selectorOptions
+}
+
+func (t *TraceJobClient) findJobsWithFilter(nf TraceJobFilter) ([]batchv1.Job, error) {
+
+	selectorOptions := nf.selectorOptions()
+	if len(selectorOptions.LabelSelector) == 0 {
+		return []batchv1.Job{}, nil
 	}
 
 	jl, err := t.JobClient.List(selectorOptions)
@@ -66,18 +82,9 @@ func (t *TraceJobClient) findJobsWithFilter(nf TraceJobFilter) ([]batchv1.Job, e
 }
 
 func (t *TraceJobClient) findConfigMapsWithFilter(nf TraceJobFilter) ([]apiv1.ConfigMap, error) {
-	selectorOptions := metav1.ListOptions{}
-
-	if nf.Name != nil {
-		selectorOptions = metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("%s=%s", meta.TraceLabelKey, *nf.Name),
-		}
-	}
-
-	if nf.ID != nil {
-		selectorOptions = metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("%s=%s", meta.TraceIDLabelKey, *nf.ID),
-		}
+	selectorOptions := nf.selectorOptions()
+	if len(selectorOptions.LabelSelector) == 0 {
+		return []apiv1.ConfigMap{}, nil
 	}
 
 	cm, err := t.ConfigClient.List(selectorOptions)
