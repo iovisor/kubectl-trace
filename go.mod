@@ -36,7 +36,7 @@ require (
 	github.com/spf13/pflag v1.0.3
 	github.com/stevvooe/resumable v0.0.0-20180830230917-22b14a53ba50 // indirect
 	golang.org/x/crypto v0.0.0-20181112202954-3d3f9f413869 // indirect
-	golang.org/x/net v0.0.0-20181114220301-adae6a3d119a // indirect
+	golang.org/x/net v0.0.0-20181201002055-351d144fa1fc // indirect
 	golang.org/x/oauth2 v0.0.0-20181120190819-8f65e3013eba // indirect
 	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f // indirect
 	golang.org/x/sys v0.0.0-20181122145206-62eef0e2fa9b // indirect
@@ -53,7 +53,7 @@ require (
 	k8s.io/client-go v9.0.0+incompatible
 	k8s.io/klog v0.1.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20181114233023-0317810137be // indirect
-	k8s.io/kubernetes v1.12.2
+	k8s.io/kubernetes v1.12.3
 	k8s.io/utils v0.0.0-20181115163542-0d26856f57b3 // indirect
 	sigs.k8s.io/yaml v1.1.0 // indirect
 )

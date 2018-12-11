@@ -74,6 +74,7 @@ func NewTraceCommand(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd.AddCommand(NewAttachCommand(f, streams))
 	cmd.AddCommand(NewDeleteCommand(f, streams))
 	cmd.AddCommand(NewVersionCommand(streams))
+	cmd.AddCommand(NewLogCommand(f, streams))
 
 	return cmd
 }
