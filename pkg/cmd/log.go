@@ -57,6 +57,7 @@ func NewLogCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 		Short:                 logShort,
 		Long:                  logLong,                             // Wrap with templates.LongDesc()
 		Example:               fmt.Sprintf(logExamples, "kubectl"), // Wrap with templates.Examples()
+		Args:                  cobra.ExactArgs(1),
 		PreRunE: func(c *cobra.Command, args []string) error {
 			return o.Validate(c, args)
 		},
@@ -76,17 +77,11 @@ func NewLogCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 }
 
 func (o *LogOptions) Validate(cmd *cobra.Command, args []string) error {
-	switch len(args) {
-	case 1:
-		if meta.IsObjectName(args[0]) {
-			o.traceName = &args[0]
-		} else {
-			tid := types.UID(args[0])
-			o.traceID = &tid
-		}
-		break
-	default:
-		return fmt.Errorf("(TRACE_ID | TRACE_NAME) is a required argument for the log command")
+	if meta.IsObjectName(args[0]) {
+		o.traceName = &args[0]
+	} else {
+		tid := types.UID(args[0])
+		o.traceID = &tid
 	}
 
 	return nil
