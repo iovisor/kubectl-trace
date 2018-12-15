@@ -213,6 +213,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: commonMeta,
 				Spec: apiv1.PodSpec{
+					HostPID: true,
 					Volumes: []apiv1.Volume{
 						apiv1.Volume{
 							Name: "program",
