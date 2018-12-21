@@ -3,12 +3,14 @@ module github.com/fntlnz/kubectl-trace
 require (
 	cloud.google.com/go v0.34.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
+	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/distribution v2.6.2+incompatible // indirect
 	github.com/docker/docker v0.7.3-0.20181124105010-0b7cb16dde4a // indirect
 	github.com/docker/spdystream v0.0.0-20160310174837-449fdfce4d96 // indirect
 	github.com/elazarl/goproxy v0.0.0-20181111060418-2ce16c963a8a // indirect
 	github.com/evanphx/json-patch v4.1.0+incompatible // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
+	github.com/fntlnz/mountinfo v0.0.0-20171106231217-40cb42681fad
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-openapi/spec v0.17.2 // indirect
 	github.com/gogo/protobuf v1.1.1 // indirect
