@@ -170,13 +170,10 @@ func (t *TraceJobClient) DeleteJobs(nf TraceJobFilter) error {
 	return nil
 }
 
-// todo(fntlnz): deal with programs that needs the user to send a signal to complete,
-// like how the hist() function does
-// Will likely need to allocate a TTY for this one thing.
 func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 	bpfTraceCmd := []string{
-		"bpftrace",
-		"/programs/program.bt",
+		"/bin/trace-runner",
+		"--program=/programs/program.bt",
 	}
 
 	commonMeta := metav1.ObjectMeta{
@@ -205,11 +202,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 			TTLSecondsAfterFinished: int32Ptr(5),
 			Parallelism:             int32Ptr(1),
 			Completions:             int32Ptr(1),
-			// This is why your tracing job is being killed after 100 seconds,
-			// someone should work on it to make it configurable and let it run
-			// indefinitely by default.
-			ActiveDeadlineSeconds: int64Ptr(100), // TODO(fntlnz): allow canceling from kubectl and increase this,
-			BackoffLimit:          int32Ptr(1),
+			BackoffLimit:            int32Ptr(1),
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: commonMeta,
 				Spec: apiv1.PodSpec{
