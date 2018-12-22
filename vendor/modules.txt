@@ -17,6 +17,8 @@ github.com/docker/spdystream/spdy
 github.com/evanphx/json-patch
 # github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d
 github.com/exponent-io/jsonpath
+# github.com/fntlnz/mountinfo v0.0.0-20171106231217-40cb42681fad
+github.com/fntlnz/mountinfo
 # github.com/ghodss/yaml v1.0.0
 github.com/ghodss/yaml
 # github.com/go-openapi/jsonpointer v0.17.0
