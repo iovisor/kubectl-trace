@@ -179,6 +179,7 @@ func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 	case *v1.Pod:
 		o.isPod = true
 		found := false
+		o.podUID = string(v.UID)
 		for _, c := range v.Spec.Containers {
 			// default if no container provided
 			if len(o.container) == 0 {
@@ -192,6 +193,11 @@ func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 				break
 			}
 		}
+
+		if len(v.Spec.NodeName) == 0 {
+			return fmt.Errorf("cannot attach a trace program to a pod that is not currently scheduled on a node")
+		}
+		o.nodeName = v.Spec.NodeName
 
 		if !found {
 			return fmt.Errorf("no containers found for the provided pod/container combination")
