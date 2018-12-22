@@ -175,8 +175,14 @@ func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 
 	// Check we got a pod or a node
 	o.isPod = false
+
+	var node *v1.Node
+
 	switch v := obj.(type) {
 	case *v1.Pod:
+		if len(v.Spec.NodeName) == 0 {
+			return fmt.Errorf("cannot attach a trace program to a pod that is not currently scheduled on a node")
+		}
 		o.isPod = true
 		found := false
 		o.podUID = string(v.UID)
@@ -194,26 +200,42 @@ func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 			}
 		}
 
-		if len(v.Spec.NodeName) == 0 {
-			return fmt.Errorf("cannot attach a trace program to a pod that is not currently scheduled on a node")
-		}
-		o.nodeName = v.Spec.NodeName
-
 		if !found {
 			return fmt.Errorf("no containers found for the provided pod/container combination")
 		}
+
+		obj, err = factory.
+			NewBuilder().
+			WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+			ResourceNames("nodes", v.Spec.NodeName).
+			Do().Object()
+
+		if err != nil {
+			return err
+		}
+
+		if n, ok := obj.(*v1.Node); ok {
+			node = n
+		}
+
 		break
 	case *v1.Node:
-		labels := v.GetLabels()
-		val, ok := labels["kubernetes.io/hostname"]
-		if !ok {
-			return fmt.Errorf("label kubernetes.io/hostname not found in node")
-		}
-		o.nodeName = val
+		node = v
 		break
 	default:
 		return fmt.Errorf("first argument must be %s", usageString)
 	}
+
+	if node == nil {
+		return fmt.Errorf("could not determine on which node to run the trace program")
+	}
+
+	labels := node.GetLabels()
+	val, ok := labels["kubernetes.io/hostname"]
+	if !ok {
+		return fmt.Errorf("label kubernetes.io/hostname not found in node")
+	}
+	o.nodeName = val
 
 	// Prepare client
 	o.clientConfig, err = factory.ToRESTConfig()
