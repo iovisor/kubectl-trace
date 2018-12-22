@@ -5,7 +5,6 @@ import (
 
 	"github.com/fntlnz/kubectl-trace/pkg/cmd"
 	"github.com/spf13/pflag"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
 func main() {
