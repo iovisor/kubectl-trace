@@ -14,12 +14,16 @@ IMAGE_BPFTRACE_COMMIT := quay.io/fntlnz/kubectl-trace-bpftrace:$(GIT_COMMIT)
 IMAGE_BUILD_FLAGS ?= "--no-cache"
 
 kubectl_trace ?= _output/bin/kubectl-trace
+trace_runner ?= _output/bin/trace-runner
 
 .PHONY: build
-build: clean ${kubectl_trace}
+build: clean ${kubectl_trace} ${trace_runner}
 
 ${kubectl_trace}:
-	$(GO) build -o $@ ./cmd/kubectl-trace
+	CGO_ENABLED=0 $(GO) build -o $@ ./cmd/kubectl-trace
+
+${trace_runner}:
+	CGO_ENABLED=1 $(GO) build -o $@ ./cmd/trace-runner
 
 .PHONY: clean
 clean:

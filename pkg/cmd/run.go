@@ -59,6 +59,8 @@ type RunOptions struct {
 	program     string
 	resourceArg string
 	attach      bool
+	isPod       bool
+	podUID      string
 
 	nodeName string
 
@@ -172,16 +174,28 @@ func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 	}
 
 	// Check we got a pod or a node
-	// isPod := false
+	o.isPod = false
 	switch v := obj.(type) {
 	case *v1.Pod:
-		// isPod = true
-		// if len(o.container) == 0 {
-		// todo > get the default container or the first one, see https://github.com/fntlnz/kubectl-trace/pull/1#issuecomment-441331255
-		// } else {
-		// todo > check the pod has the provided container (o.container)
-		// }
-		return fmt.Errorf("running bpftrace programs against pods is not supported yet, see: https://github.com/fntlnz/kubectl-trace/issues/3")
+		o.isPod = true
+		found := false
+		for _, c := range v.Spec.Containers {
+			// default if no container provided
+			if len(o.container) == 0 {
+				o.container = c.Name
+				found = true
+				break
+			}
+			// check if the provided one exists
+			if c.Name == o.container {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return fmt.Errorf("no containers found for the provided pod/container combination")
+		}
 		break
 	case *v1.Node:
 		labels := v.GetLabels()
@@ -223,11 +237,14 @@ func (o *RunOptions) Run() error {
 	}
 
 	tj := tracejob.TraceJob{
-		Name:      fmt.Sprintf("%s%s", meta.ObjectNamePrefix, string(juid)),
-		Namespace: o.namespace,
-		ID:        juid,
-		Hostname:  o.nodeName,
-		Program:   o.program,
+		Name:          fmt.Sprintf("%s%s", meta.ObjectNamePrefix, string(juid)),
+		Namespace:     o.namespace,
+		ID:            juid,
+		Hostname:      o.nodeName,
+		Program:       o.program,
+		PodUID:        o.podUID,
+		ContainerName: o.container,
+		IsPod:         o.isPod,
 	}
 
 	job, err := tc.CreateJob(tj)

@@ -22,11 +22,14 @@ type TraceJobClient struct {
 }
 
 type TraceJob struct {
-	Name      string
-	ID        types.UID
-	Namespace string
-	Hostname  string
-	Program   string
+	Name          string
+	ID            types.UID
+	Namespace     string
+	Hostname      string
+	Program       string
+	PodUID        string
+	ContainerName string
+	IsPod         bool
 }
 
 // WithOutStream setup a file stream to output trace job operation information
@@ -171,9 +174,16 @@ func (t *TraceJobClient) DeleteJobs(nf TraceJobFilter) error {
 }
 
 func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
+
 	bpfTraceCmd := []string{
 		"/bin/trace-runner",
 		"--program=/programs/program.bt",
+	}
+
+	if nj.IsPod {
+		bpfTraceCmd = append(bpfTraceCmd, "--inpod")
+		bpfTraceCmd = append(bpfTraceCmd, "--container="+nj.ContainerName)
+		bpfTraceCmd = append(bpfTraceCmd, "--poduid="+nj.PodUID)
 	}
 
 	commonMeta := metav1.ObjectMeta{
@@ -238,7 +248,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 					Containers: []apiv1.Container{
 						apiv1.Container{
 							Name:    nj.Name,
-							Image:   "quay.io/fntlnz/kubectl-trace-bpftrace:master", //TODO(fntlnz): yes this should be configurable!
+							Image:   "quay.io/fntlnz/kubectl-trace-bpftrace:feature-pod-support-tracerunner", //TODO(fntlnz): yes this should be configurable!
 							Command: bpfTraceCmd,
 							TTY:     true,
 							Stdin:   true,
