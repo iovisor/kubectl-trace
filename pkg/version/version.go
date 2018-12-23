@@ -17,6 +17,10 @@ func GitCommit() string {
 }
 
 func ImageNameTag() string {
+	commit := GitCommit()
+	if len(commit) == 0 {
+		return fmt.Sprintf(imageNameTagFormat, "latest")
+	}
 	return fmt.Sprintf(imageNameTagFormat, GitCommit())
 }
 
