@@ -36,7 +36,7 @@ RUN ./build.sh /bpftrace/build-release Release
 FROM golang:1.11.4-alpine3.8 as gobuilder
 
 RUN apk update
-RUN apk add make
+RUN apk add make bash
 
 ADD . /go/src/github.com/fntlnz/kubectl-trace
 WORKDIR /go/src/github.com/fntlnz/kubectl-trace
