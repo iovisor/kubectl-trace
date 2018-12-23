@@ -18,6 +18,7 @@ func main() {
 		Out:    os.Stdout,
 		ErrOut: os.Stderr,
 	}
+
 	root := cmd.NewTraceCommand(streams)
 	if err := root.Execute(); err != nil {
 		os.Exit(1)

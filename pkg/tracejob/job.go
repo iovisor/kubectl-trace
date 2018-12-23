@@ -3,6 +3,8 @@ package tracejob
 import (
 	"fmt"
 
+	"github.com/fntlnz/kubectl-trace/pkg/version"
+
 	"io"
 	"io/ioutil"
 
@@ -248,7 +250,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 					Containers: []apiv1.Container{
 						apiv1.Container{
 							Name:    nj.Name,
-							Image:   "quay.io/fntlnz/kubectl-trace-bpftrace:feature-pod-support-tracerunner", //TODO(fntlnz): yes this should be configurable!
+							Image:   version.ImageNameTag(),
 							Command: bpfTraceCmd,
 							TTY:     true,
 							Stdin:   true,
