@@ -1,23 +1,17 @@
 package cmd
 
 import (
-	"encoding/hex"
 	"fmt"
 	"io"
-	"math/rand"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/fntlnz/mountinfo"
 	"github.com/spf13/cobra"
-	"golang.org/x/sys/unix"
 )
-
-const runFolder = "/var/run"
 
 type TraceRunnerOptions struct {
 	podUID             string
@@ -70,91 +64,31 @@ func (o *TraceRunnerOptions) Complete(cmd *cobra.Command, args []string) error {
 }
 
 func (o *TraceRunnerOptions) Run() error {
-	if o.inPod == false {
-		c := exec.Command(o.bpftraceBinaryPath, o.programPath)
-		c.Stdout = os.Stdout
-		c.Stdin = os.Stdin
-		c.Stderr = os.Stderr
-		return c.Run()
+	programPath := o.programPath
+	if o.inPod == true {
+		pid, err := findPidByPodContainer(o.podUID, o.containerName)
+		if err != nil {
+			return err
+		}
+		if pid == nil {
+			return fmt.Errorf("pid not found")
+		}
+		if len(*pid) == 0 {
+			return fmt.Errorf("invalid pid found")
+		}
+		f, err := ioutil.ReadFile(programPath)
+		r := strings.Replace(string(f), "$container_pid", *pid, -1)
+		if err := ioutil.WriteFile(programPath, []byte(r), 0755); err != nil {
+			return err
+		}
+		programPath = path.Join(os.TempDir(), "program-container.bt")
 	}
 
-	pid, err := findPidByPodContainer(o.podUID, o.containerName)
-	if err != nil {
-		return err
-	}
-	if pid == nil {
-		return fmt.Errorf("pid not found")
-	}
-	if len(*pid) == 0 {
-		return fmt.Errorf("invalid pid found")
-	}
-
-	// pid found, enter its process namespace
-	pidns := path.Join("/proc", *pid, "/ns/pid")
-	pidnsfd, err := syscall.Open(pidns, syscall.O_RDONLY, 0666)
-	if err != nil {
-		return fmt.Errorf("error retrieving process namespace %s %v", pidns, err)
-	}
-	defer syscall.Close(pidnsfd)
-	syscall.RawSyscall(unix.SYS_SETNS, uintptr(pidnsfd), 0, 0)
-
-	rootfs := path.Join("/proc", *pid, "root")
-	bpftracebinaryName, err := temporaryFileName("bpftrace")
-	if err != nil {
-		return err
-	}
-	temporaryProgramName := fmt.Sprintf("%s-%s", bpftracebinaryName, "program.bt")
-
-	binaryPathProcRootfs := path.Join(rootfs, bpftracebinaryName)
-	if err := copyFile(o.bpftraceBinaryPath, binaryPathProcRootfs, 0755); err != nil {
-		return err
-	}
-
-	programPathProcRootfs := path.Join(rootfs, temporaryProgramName)
-	if err := copyFile(o.programPath, programPathProcRootfs, 0644); err != nil {
-		return err
-	}
-
-	if err := syscall.Chroot(rootfs); err != nil {
-		os.Remove(binaryPathProcRootfs)
-		return err
-	}
-
-	defer os.Remove(bpftracebinaryName)
-
-	c := exec.Command(bpftracebinaryName, temporaryProgramName)
-
+	c := exec.Command(o.bpftraceBinaryPath, o.programPath)
 	c.Stdout = os.Stdout
 	c.Stdin = os.Stdin
 	c.Stderr = os.Stderr
-
 	return c.Run()
-}
-
-func copyFile(src, dest string, mode os.FileMode) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return fmt.Errorf("bpftrace binary not found in host: %v", err)
-	}
-	defer in.Close()
-
-	out, err := os.OpenFile(dest, os.O_RDWR|os.O_CREATE|os.O_TRUNC, mode)
-
-	if err != nil {
-		return fmt.Errorf("unable to create file in destination: %v", err)
-	}
-	defer out.Close()
-
-	if _, err = io.Copy(out, in); err != nil {
-		return fmt.Errorf("unable to copy file to destination: %v", err)
-	}
-
-	err = out.Sync()
-
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func findPidByPodContainer(podUID, containerName string) (*string, error) {
@@ -199,10 +133,4 @@ func findPidByPodContainer(podUID, containerName string) (*string, error) {
 	}
 
 	return nil, fmt.Errorf("no process found for specified pod and container")
-}
-
-func temporaryFileName(prefix string) (string, error) {
-	randBytes := make([]byte, 16)
-	rand.Read(randBytes)
-	return filepath.Join(runFolder, prefix+hex.EncodeToString(randBytes)), nil
 }

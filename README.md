@@ -38,33 +38,36 @@ kubectl trace run ip-180-12-0-152.ec2.internal -f read.bt
 
 **Run a program against a Pod**
 
-In this case we are running our tracing program in the same pid namespace (`man 7 pid_namespaces`) of the default container of the pod named
-`caturday-566d99889-8glv9`. Our trace program will be also sharing the same rootfs with that container.
-
 That pod has a Go program in it that is at `/caturday`, that program has a function called `main.counterValue` in it that returns an integer
 every time it is called.
 
 The purpose of this program is to load an `uretprobe` on the `/caturday` binary so that every time thhe `main.counterValue` function is called
 we get the return value out.
 
-```
-kubectl trace run -e 'uretprobe:/caturday:"main.counterValue" { printf("%d\n", retval) }' pod/caturday-566d99889-8glv9 -a -n caturday
-```
+Since `kubectl trace` for pods is just an helper to resolve the context of a container's Pod, you will always be in the root namespaces
+but in this case you will have a variable `$container_pid` containing the pid of the root process in that container on the root pid namespace.
 
-**Important note** The fact that the trace programs runs in the same pid namespace and under the same chroot **doesn't mean** that the trace program
-is contained in that container, so if you have another caturday binary running from the same image (or ELF binary) in the same machine you will be dumping results from both.
+What you do then is that you get the `/caturday` binary via `/proc/$container_pid/exe`, like this:
+
+```
+kubectl trace run -e 'uretprobe:/proc/$container_pid/exe:"main.counterValue" { printf("%d\n", retval) }' pod/caturday-566d99889-8glv9 -a -n caturday
+```
 
 ### Running against a Pod vs against a Node
 
 In general, you run kprobes/kretprobes, tracepoints, software, hardware and profile events against nodes using the `node/node-name` syntax or just use the
 node name, node is the default.
 
-When you want to actually probe an userspace program with an uprobe/uretprobe or use an user-level stattic tracepoint (usdt) your best
+When you want to actually probe an userspace program with an uprobe/uretprobe or use an user-level static tracepoint (usdt) your best
 bet is to run it against a pod using the `pod/pod-name` syntax.
 
-It's always important to remember that running a program against a pod, as of now, is just a facilitator to find the binary you want to probe, you are in the same root filesystem so if your binary is in `/mybinary` it's easier to find it from there. You could do the same thing when running in a Node by 
-knowing the pid of your binary to get it from the proc filesystem like `/proc/12345/exe` but that would require extra machine access to actually find
-the pid. So, running against a pod **doesn't mean** that your bpftrace program will be contained in that pod but just that it will run from the same root filesystem.
+It's always important to remember that running a program against a pod, as of now, is just a facilitator to find the process id for the binary you want to probe
+on the root process namespace.
+
+You could do the same thing when running in a Node by knowing the pid of your process yourself after entering in the node via another medium, e.g: ssh.
+
+So, running against a pod **doesn't mean** that your bpftrace program will be contained in that pod but just that it will pass to your program some
+knowledge of the context of a container, in this case only the root process id is supported via the `$container_pid` variable.
 
 
 ### More bpftrace programs
