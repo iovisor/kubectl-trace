@@ -77,11 +77,14 @@ func (o *TraceRunnerOptions) Run() error {
 			return fmt.Errorf("invalid pid found")
 		}
 		f, err := ioutil.ReadFile(programPath)
+		if err != nil {
+			return err
+		}
+		programPath = path.Join(os.TempDir(), "program-container.bt")
 		r := strings.Replace(string(f), "$container_pid", *pid, -1)
 		if err := ioutil.WriteFile(programPath, []byte(r), 0755); err != nil {
 			return err
 		}
-		programPath = path.Join(os.TempDir(), "program-container.bt")
 	}
 
 	c := exec.Command(o.bpftraceBinaryPath, o.programPath)
