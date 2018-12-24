@@ -74,9 +74,7 @@ knowledge of the context of a container, in this case only the root process id i
 
 ### More bpftrace programs
 
-Need more programs? Look [here](https://github.com/iovisor/bpftrace/tree/master/tools)
-
-Some of them will not yet work because we don't attach with a TTY already, sorry for that but good news you can contribute it!
+Need more programs? Look [here](https://github.com/iovisor/bpftrace/tree/master/tools).
 
 ## Status of the project
 
