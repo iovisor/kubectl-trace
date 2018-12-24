@@ -38,6 +38,8 @@ kubectl trace run ip-180-12-0-152.ec2.internal -f read.bt
 
 **Run a program against a Pod**
 
+![Screenshot showing the read.bt program for kubectl-trace](docs/img/pod.png)
+
 That pod has a Go program in it that is at `/caturday`, that program has a function called `main.counterValue` in it that returns an integer
 every time it is called.
 
