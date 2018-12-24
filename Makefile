@@ -10,6 +10,7 @@ GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
 
 IMAGE_BPFTRACE_BRANCH := quay.io/fntlnz/kubectl-trace-bpftrace:$(GIT_BRANCH_CLEAN)
 IMAGE_BPFTRACE_COMMIT := quay.io/fntlnz/kubectl-trace-bpftrace:$(GIT_COMMIT)
+IMAGE_BPFTRACE_LATEST := quay.io/fntlnz/kubectl-trace-bpftrace:latest
 
 IMAGE_BUILD_FLAGS ?= "--no-cache"
 
@@ -19,7 +20,7 @@ kubectl_trace ?= _output/bin/kubectl-trace
 trace_runner ?= _output/bin/trace-runner
 
 .PHONY: build
-build: clean ${kubectl_trace} ${trace_runner}
+build: clean ${kubectl_trace}
 
 ${kubectl_trace}:
 	CGO_ENABLED=1 $(GO) build ${LDFLAGS} -o $@ ./cmd/kubectl-trace
@@ -40,3 +41,8 @@ image/build:
 image/push:
 	$(DOCKER) push $(IMAGE_BPFTRACE_BRANCH)
 	$(DOCKER) push $(IMAGE_BPFTRACE_COMMIT)
+
+.PHONY: image/latest
+image/latest:
+	$(DOCKER) tag $(IMAGE_BPFTRACE_COMMIT) $(IMAGE_BPFTRACE_LATEST)
+	$(DOCKER) push $(IMAGE_BPFTRACE_LATEST)
