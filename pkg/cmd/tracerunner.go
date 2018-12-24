@@ -87,7 +87,7 @@ func (o *TraceRunnerOptions) Run() error {
 		}
 	}
 
-	c := exec.Command(o.bpftraceBinaryPath, o.programPath)
+	c := exec.Command(o.bpftraceBinaryPath, programPath)
 	c.Stdout = os.Stdout
 	c.Stdin = os.Stdin
 	c.Stderr = os.Stderr
