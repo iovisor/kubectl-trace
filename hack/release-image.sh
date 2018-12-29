@@ -13,7 +13,7 @@ if [[ ! -z "$QUAY_TOKEN" ]]; then
   $docker login -u="fntlnz+travisci" -p="$QUAY_TOKEN" quay.io
   $make image/push
 
-  if [[ "TRAVIS_BRANCH" == "master" ]]; then
+  if [[ "$TRAVIS_BRANCH" = "master" ]]; then
     $make image/latest
   fi
 fi
