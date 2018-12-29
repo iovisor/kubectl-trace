@@ -46,3 +46,4 @@ image/push:
 image/latest:
 	$(DOCKER) tag $(IMAGE_BPFTRACE_COMMIT) $(IMAGE_BPFTRACE_LATEST)
 	$(DOCKER) push $(IMAGE_BPFTRACE_LATEST)
+
