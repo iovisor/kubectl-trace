@@ -1,4 +1,7 @@
 language: go
+branches:
+  only:
+  - master
 go:
 - 1.11.4
 services:
