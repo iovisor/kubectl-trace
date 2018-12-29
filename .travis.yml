@@ -1,0 +1,9 @@
+language: go
+go:
+- 1.11.4
+services:
+- docker
+script:
+- make _output/bin/kubectl-trace
+after_success:
+- ./hack/release-image.sh
