@@ -12,22 +12,18 @@ import (
 	"fmt"
 	"io"
 
-	"context"
-
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 type Logs struct {
 	genericclioptions.IOStreams
 	coreV1Client tcorev1.CoreV1Interface
-	ctx          context.Context
 }
 
 func NewLogs(client tcorev1.CoreV1Interface, streams genericclioptions.IOStreams) *Logs {
 	return &Logs{
 		coreV1Client: client,
 		IOStreams:    streams,
-		ctx:          context.TODO(),
 	}
 }
 
@@ -37,11 +33,7 @@ const (
 	invalidPodContainersSizeError = "unexpected number of containers in trace job pod"
 )
 
-func (l *Logs) WithContext(c context.Context) {
-	l.ctx = c
-}
-
-func (l *Logs) Run(jobID types.UID, namespace string) error {
+func (l *Logs) Run(jobID types.UID, namespace string, follow bool, timestamps bool) error {
 	pl, err := l.coreV1Client.Pods(namespace).List(metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", meta.TraceIDLabelKey, jobID),
 	})
@@ -65,20 +57,16 @@ func (l *Logs) Run(jobID types.UID, namespace string) error {
 
 	containerName := pod.Spec.Containers[0].Name
 
-	// TODO(fntlnz): let the user choose to follow or not
 	logOptions := &corev1.PodLogOptions{
 		Container:  containerName,
-		Follow:     true,
+		Follow:     follow,
 		Previous:   false,
-		Timestamps: false,
+		Timestamps: timestamps,
 	}
 
 	logsRequest := l.coreV1Client.Pods(namespace).GetLogs(pod.Name, logOptions)
 
-	go consumeRequest(logsRequest, l.IOStreams.Out)
-	<-l.ctx.Done()
-
-	return nil
+	return consumeRequest(logsRequest, l.IOStreams.Out)
 }
 
 func consumeRequest(request *rest.Request, out io.Writer) error {
@@ -91,4 +79,3 @@ func consumeRequest(request *rest.Request, out io.Writer) error {
 	_, err = io.Copy(out, readCloser)
 	return err
 }
-

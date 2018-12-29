@@ -1,13 +1,11 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/fntlnz/kubectl-trace/pkg/factory"
 	"github.com/fntlnz/kubectl-trace/pkg/logs"
 	"github.com/fntlnz/kubectl-trace/pkg/meta"
-	"github.com/fntlnz/kubectl-trace/pkg/signals"
 	"github.com/fntlnz/kubectl-trace/pkg/tracejob"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/types"
@@ -18,17 +16,21 @@ import (
 )
 
 var (
-	logShort = `` // Wrap with i18n.T()
-	logLong  = logShort + `
-
-...`
-
+	logShort    = `Print the logs for a specific trace execution` // Wrap with i18n.T()
+	logLong     = logShort
 	logExamples = `
-  # ...
-  %[1]s trace log -h
+  # Logs from a trace using its name
+  %[1]s trace logs kubectl-trace-d5842929-0b78-11e9-a9fa-40a3cc632df1
 
-  # ...
-  %[1]s trace log`
+  # Logs from a trace using its id
+  %[1]s trace log 5594d7e1-0b78-11e9-b7f1-40a3cc632df1
+
+  # Follow logs
+  %[1]s trace logs kubectl-trace-d5842929-0b78-11e9-a9fa-40a3cc632df1 -f
+
+  # Add timestamp to logs
+  %[1]s trace logs kubectl-trace-d5842929-0b78-11e9-a9fa-40a3cc632df1 --timestamp
+`
 )
 
 // LogOptions ...
@@ -38,12 +40,16 @@ type LogOptions struct {
 	traceName    *string
 	namespace    string
 	clientConfig *rest.Config
+	follow       bool
+	timestamps   bool
 }
 
 // NewLogOptions provides an instance of LogOptions with default values.
 func NewLogOptions(streams genericclioptions.IOStreams) *LogOptions {
 	return &LogOptions{
-		IOStreams: streams,
+		IOStreams:  streams,
+		follow:     false,
+		timestamps: false,
 	}
 }
 
@@ -52,8 +58,9 @@ func NewLogCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 	o := NewLogOptions(streams)
 
 	cmd := &cobra.Command{
-		Use:                   "log (TRACE_ID | TRACE_NAME)",
+		Use:                   "logs (TRACE_ID | TRACE_NAME) [-f]",
 		DisableFlagsInUseLine: true,
+		Aliases:               []string{"log"},
 		Short:                 logShort,
 		Long:                  logLong,                             // Wrap with templates.LongDesc()
 		Example:               fmt.Sprintf(logExamples, "kubectl"), // Wrap with templates.Examples()
@@ -73,6 +80,8 @@ func NewLogCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 		},
 	}
 
+	cmd.Flags().BoolVarP(&o.follow, "follow", "f", o.follow, "Specify if the logs should be streamed")
+	cmd.Flags().BoolVar(&o.timestamps, "timestamps", o.timestamps, "Include timestamps on each line in the log output")
 	return cmd
 }
 
@@ -136,10 +145,7 @@ func (o *LogOptions) Run() error {
 
 	job := jobs[0]
 
-	ctx := context.Background()
-	ctx = signals.WithStandardSignals(ctx)
 	nl := logs.NewLogs(client, o.IOStreams)
-	nl.WithContext(ctx)
-	nl.Run(job.ID, job.Namespace)
+	nl.Run(job.ID, job.Namespace, o.follow, o.timestamps)
 	return nil
 }
