@@ -48,3 +48,6 @@ image/latest:
 	$(DOCKER) tag $(IMAGE_BPFTRACE_COMMIT) $(IMAGE_BPFTRACE_LATEST)
 	$(DOCKER) push $(IMAGE_BPFTRACE_LATEST)
 
+.PHONY: test
+test:
+	$(GO) test -v -race ./...

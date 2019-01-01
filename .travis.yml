@@ -7,5 +7,6 @@ go:
 services:
 - docker
 script:
+- make test
 - make _output/bin/kubectl-trace
 - ./hack/release-image.sh
