@@ -8,7 +8,7 @@ of [bpftrace](https://github.com/iovisor/bpftrace) programs in your Kubernetes c
 ## Installation
 
 ```
-go get -u github.com/fntlnz/kubectl-trace/cmd/kubectl-trace
+go get -u github.com/iovisor/kubectl-trace/cmd/kubectl-trace
 ```
 
 This will download and compile `kubectl-trace` so that you can use it as a kubectl plugin with `kubectl trace`

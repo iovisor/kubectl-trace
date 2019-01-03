@@ -3,12 +3,12 @@ package tracejob
 import (
 	"fmt"
 
-	"github.com/fntlnz/kubectl-trace/pkg/version"
+	"github.com/iovisor/kubectl-trace/pkg/version"
 
 	"io"
 	"io/ioutil"
 
-	"github.com/fntlnz/kubectl-trace/pkg/meta"
+	"github.com/iovisor/kubectl-trace/pkg/meta"
 	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/fntlnz/kubectl-trace/pkg/cmd"
+	"github.com/iovisor/kubectl-trace/pkg/cmd"
 	"github.com/spf13/pflag"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"

@@ -5,9 +5,9 @@ import (
 	"io"
 	"text/tabwriter"
 
-	"github.com/fntlnz/kubectl-trace/pkg/factory"
-	"github.com/fntlnz/kubectl-trace/pkg/meta"
-	"github.com/fntlnz/kubectl-trace/pkg/tracejob"
+	"github.com/iovisor/kubectl-trace/pkg/factory"
+	"github.com/iovisor/kubectl-trace/pkg/meta"
+	"github.com/iovisor/kubectl-trace/pkg/tracejob"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"

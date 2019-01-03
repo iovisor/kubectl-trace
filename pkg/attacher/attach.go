@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/fntlnz/kubectl-trace/pkg/meta"
+	"github.com/iovisor/kubectl-trace/pkg/meta"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"

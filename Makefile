@@ -15,7 +15,7 @@ IMAGE_BPFTRACE_LATEST := quay.io/fntlnz/kubectl-trace-bpftrace:latest
 
 IMAGE_BUILD_FLAGS ?= "--no-cache"
 
-LDFLAGS := -ldflags '-X github.com/fntlnz/kubectl-trace/pkg/version.buildTime=$(shell date +%s) -X github.com/fntlnz/kubectl-trace/pkg/version.gitCommit=${GIT_COMMIT}'
+LDFLAGS := -ldflags '-X github.com/iovisor/kubectl-trace/pkg/version.buildTime=$(shell date +%s) -X github.com/iovisor/kubectl-trace/pkg/version.gitCommit=${GIT_COMMIT}'
 
 kubectl_trace ?= _output/bin/kubectl-trace
 trace_runner ?= _output/bin/trace-runner
