@@ -1,4 +1,4 @@
-module github.com/fntlnz/kubectl-trace
+module github.com/iovisor/kubectl-trace
 
 require (
 	cloud.google.com/go v0.34.0 // indirect

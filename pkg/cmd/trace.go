@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/fntlnz/kubectl-trace/pkg/factory"
+	"github.com/iovisor/kubectl-trace/pkg/factory"
 
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
