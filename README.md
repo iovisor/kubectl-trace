@@ -43,7 +43,7 @@ kubectl trace run ip-180-12-0-152.ec2.internal -f read.bt
 That pod has a Go program in it that is at `/caturday`, that program has a function called `main.counterValue` in it that returns an integer
 every time it is called.
 
-The purpose of this program is to load an `uretprobe` on the `/caturday` binary so that every time thhe `main.counterValue` function is called
+The purpose of this program is to load an `uretprobe` on the `/caturday` binary so that every time the `main.counterValue` function is called
 we get the return value out.
 
 Since `kubectl trace` for pods is just an helper to resolve the context of a container's Pod, you will always be in the root namespaces
