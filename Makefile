@@ -54,5 +54,5 @@ test:
 
 .PHONY: integration
 integration:
-	$(GO) test -v ./integration/...
+	TEST_KUBECTLTRACE_BINARY=$(shell pwd)/$(kubectl_trace) $(GO) test -v ./integration/...
 

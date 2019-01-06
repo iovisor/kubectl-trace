@@ -9,4 +9,5 @@ services:
 script:
 - make test
 - make _output/bin/kubectl-trace
+- make integration
 - ./hack/release-image.sh
