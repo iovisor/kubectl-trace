@@ -8,7 +8,6 @@ GIT_COMMIT := $(if $(shell git status --porcelain --untracked-files=no),${COMMIT
 GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
 
-
 IMAGE_BPFTRACE_BRANCH := quay.io/fntlnz/kubectl-trace-bpftrace:$(GIT_BRANCH_CLEAN)
 IMAGE_BPFTRACE_COMMIT := quay.io/fntlnz/kubectl-trace-bpftrace:$(GIT_COMMIT)
 IMAGE_BPFTRACE_LATEST := quay.io/fntlnz/kubectl-trace-bpftrace:latest
@@ -16,6 +15,7 @@ IMAGE_BPFTRACE_LATEST := quay.io/fntlnz/kubectl-trace-bpftrace:latest
 IMAGE_BUILD_FLAGS ?= "--no-cache"
 
 LDFLAGS := -ldflags '-X github.com/iovisor/kubectl-trace/pkg/version.buildTime=$(shell date +%s) -X github.com/iovisor/kubectl-trace/pkg/version.gitCommit=${GIT_COMMIT}'
+TESTPACKAGES := $(shell go list ./... | grep -v github.com/iovisor/kubectl-trace/integration)
 
 kubectl_trace ?= _output/bin/kubectl-trace
 trace_runner ?= _output/bin/trace-runner
@@ -50,4 +50,9 @@ image/latest:
 
 .PHONY: test
 test:
-	$(GO) test -v -race ./...
+	$(GO) test -v -race $(TESTPACKAGES)
+
+.PHONY: integration
+integration:
+	$(GO) test -v ./integration/...
+
