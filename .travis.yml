@@ -10,4 +10,5 @@ script:
 - make test
 - make _output/bin/kubectl-trace
 - make integration
+after_success:
 - ./hack/release-image.sh
