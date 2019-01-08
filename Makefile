@@ -8,9 +8,12 @@ GIT_COMMIT := $(if $(shell git status --porcelain --untracked-files=no),${COMMIT
 GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
 
-IMAGE_BPFTRACE_BRANCH := quay.io/fntlnz/kubectl-trace-bpftrace:$(GIT_BRANCH_CLEAN)
-IMAGE_BPFTRACE_COMMIT := quay.io/fntlnz/kubectl-trace-bpftrace:$(GIT_COMMIT)
-IMAGE_BPFTRACE_LATEST := quay.io/fntlnz/kubectl-trace-bpftrace:latest
+IMAGE_TRACERUNNER_BRANCH := quay.io/fntlnz/kubectl-trace-bpftrace:$(GIT_BRANCH_CLEAN)
+IMAGE_TRACERUNNER_COMMIT := quay.io/fntlnz/kubectl-trace-bpftrace:$(GIT_COMMIT)
+IMAGE_TRACERUNNER_LATEST := quay.io/fntlnz/kubectl-trace-bpftrace:latest
+
+BPFTRACESHA ?= 2ae2a53f62622631a304def6c193680e603994e3
+IMAGE_BPFTRACE_BASE := quay.io/fntlnz/kubectl-trace-bpftrace-base:$(BPFTRACESHA)
 
 IMAGE_BUILD_FLAGS ?= "--no-cache"
 
@@ -35,18 +38,18 @@ clean:
 
 .PHONY: image/build
 image/build:
-	$(DOCKER) build $(IMAGE_BUILD_FLAGS) -t $(IMAGE_BPFTRACE_BRANCH) -f Dockerfile.bpftrace .
-	$(DOCKER) tag $(IMAGE_BPFTRACE_BRANCH) $(IMAGE_BPFTRACE_COMMIT)
+	$(DOCKER) build --build-arg bpftracesha=$(BPFTRACESHA) $(IMAGE_BUILD_FLAGS) -t $(IMAGE_TRACERUNNER_BRANCH) -f Dockerfile.tracerunner .
+	$(DOCKER) tag $(IMAGE_TRACERUNNER_BRANCH) $(IMAGE_TRACERUNNER_COMMIT)
 
 .PHONY: image/push
 image/push:
-	$(DOCKER) push $(IMAGE_BPFTRACE_BRANCH)
-	$(DOCKER) push $(IMAGE_BPFTRACE_COMMIT)
+	$(DOCKER) push $(IMAGE_TRACERUNNER_BRANCH)
+	$(DOCKER) push $(IMAGE_TRACERUNNER_COMMIT)
 
 .PHONY: image/latest
 image/latest:
-	$(DOCKER) tag $(IMAGE_BPFTRACE_COMMIT) $(IMAGE_BPFTRACE_LATEST)
-	$(DOCKER) push $(IMAGE_BPFTRACE_LATEST)
+	$(DOCKER) tag $(IMAGE_TRACERUNNER_COMMIT) $(IMAGE_TRACERUNNER_LATEST)
+	$(DOCKER) push $(IMAGE_TRACERUNNER_LATEST)
 
 .PHONY: test
 test:
@@ -56,3 +59,10 @@ test:
 integration:
 	TEST_KUBECTLTRACE_BINARY=$(shell pwd)/$(kubectl_trace) $(GO) test -v ./integration/...
 
+.PHONY: bpftraceimage/build
+bpftraceimage/build:
+	$(DOCKER) build --build-arg bpftracesha=$(BPFTRACESHA) $(IMAGE_BUILD_FLAGS) -t $(IMAGE_BPFTRACE_BASE) -f Dockerfile.bpftracebase .
+
+.PHONY: bpftraceimage/push
+bpftraceimage/push:
+	$(DOCKER) push $(IMAGE_BPFTRACE_BASE)

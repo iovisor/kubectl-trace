@@ -13,7 +13,7 @@ func (k *KubectlTraceSuite) TestRunNode(c *check.C) {
 
 	nodeName := nodes[0].String()
 	bpftraceProgram := `kprobe:do_sys_open { printf("%s: %s\n", comm, str(arg1)) }'`
-	out := k.KubectlTraceCmd(c, "run", "-e", bpftraceProgram, nodeName)
+	out := k.KubectlTraceCmd(c, "run", "-e", bpftraceProgram, nodeName, "-a")
 	match, err := regexp.MatchString("trace (\\w+-){4}\\w+ created", out)
 	c.Assert(err, check.IsNil)
 	c.Assert(match, check.Equals, true)
