@@ -9,6 +9,7 @@ services:
 script:
 - make test
 - make _output/bin/kubectl-trace
+- ./hack/ci-build-image.sh
 - make integration
 after_success:
-- ./hack/release-image.sh
+- ./hack/ci-release-image.sh
