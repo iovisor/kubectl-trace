@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-check/check"
+	"github.com/iovisor/kubectl-trace/pkg/version"
 	"gotest.tools/icmd"
 	"sigs.k8s.io/kind/pkg/cluster"
 	"sigs.k8s.io/kind/pkg/cluster/config/encoding"
@@ -46,10 +47,22 @@ func (k *KubectlTraceSuite) SetUpSuite(c *check.C) {
 
 	clusterName, err := generateClusterName()
 	c.Assert(err, check.IsNil)
-	ctx := cluster.NewContext(clusterName)
-	err = ctx.Create(cfg, retain, wait)
+	kctx := cluster.NewContext(clusterName)
+
+	err = kctx.Create(cfg, retain, wait)
 	c.Assert(err, check.IsNil)
-	k.kindContext = ctx
+	k.kindContext = kctx
+
+	nodes, err := kctx.ListNodes()
+
+	c.Assert(err, check.IsNil)
+
+	// copy the bpftrace image to the nodes
+	for _, n := range nodes {
+		loadcomm := fmt.Sprintf("docker save %s | docker exec -i %s docker load", version.ImageNameTag(), n.String())
+		res := icmd.RunCommand("bash", "-c", loadcomm)
+		c.Assert(res.Error, check.IsNil)
+	}
 }
 
 func (s *KubectlTraceSuite) TearDownSuite(c *check.C) {
