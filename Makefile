@@ -57,7 +57,7 @@ test:
 
 .PHONY: integration
 integration:
-	TEST_KUBECTLTRACE_BINARY=$(shell pwd)/$(kubectl_trace) $(GO) test -v ./integration/...
+	TEST_KUBECTLTRACE_BINARY=$(shell pwd)/$(kubectl_trace) $(GO)  test ${LDFLAGS} -v ./integration/...
 
 .PHONY: bpftraceimage/build
 bpftraceimage/build:
