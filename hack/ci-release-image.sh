@@ -9,7 +9,7 @@ docker=$(command -v docker)
 
 makeopts=""
 if [[ ! -z "$TRAVIS_PULL_REQUEST_BRANCH" ]]; then
-  makeopts="-e GIT_BRANCH=$TRAVIS_PULL_REQUEST_BRANCH image/build"
+  makeopts="-e GIT_BRANCH=$TRAVIS_PULL_REQUEST_BRANCH"
 fi
 
 if [[ ! -z "$QUAY_TOKEN" ]]; then
