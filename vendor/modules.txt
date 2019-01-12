@@ -305,6 +305,7 @@ k8s.io/cli-runtime/pkg/kustomize/k8sdeps/transformer/hash
 k8s.io/cli-runtime/pkg/kustomize/k8sdeps/transformer/patch
 # k8s.io/client-go v10.0.0+incompatible
 k8s.io/client-go/plugin/pkg/client/auth/gcp
+k8s.io/client-go/plugin/pkg/client/auth/oidc
 k8s.io/client-go/kubernetes/scheme
 k8s.io/client-go/kubernetes/typed/core/v1
 k8s.io/client-go/rest
