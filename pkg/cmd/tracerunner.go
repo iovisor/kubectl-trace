@@ -1,13 +1,16 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"strings"
+	"syscall"
 
 	"github.com/fntlnz/mountinfo"
 	"github.com/spf13/cobra"
@@ -87,7 +90,32 @@ func (o *TraceRunnerOptions) Run() error {
 		}
 	}
 
-	c := exec.Command(o.bpftraceBinaryPath, programPath)
+	fmt.Println("if your program has maps to print, send a SIGINT using Ctrl-C, if you want to interrupt the execution send SIGINT two times")
+	ctx, cancel := context.WithCancel(context.Background())
+	sigCh := make(chan os.Signal, 1)
+
+	signal.Notify(sigCh, os.Signal(syscall.SIGINT))
+
+	go func() {
+		killable := false
+		defer cancel()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-sigCh:
+				if !killable {
+					killable = true
+					fmt.Println("\nfirst SIGINT received, now if your program had maps and did not free them it should print them out")
+					continue
+				}
+				return
+			}
+		}
+	}()
+
+	c := exec.CommandContext(ctx, o.bpftraceBinaryPath, programPath)
 	c.Stdout = os.Stdout
 	c.Stdin = os.Stdin
 	c.Stderr = os.Stderr
