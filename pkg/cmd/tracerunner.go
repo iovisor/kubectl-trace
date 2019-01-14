@@ -90,7 +90,7 @@ func (o *TraceRunnerOptions) Run() error {
 		}
 	}
 
-	fmt.Println("if you have maps to print, send a SIGINT using Ctrl-C, if you want to interrupt the execution send SIGINT two times")
+	fmt.Println("if your program has maps to print, send a SIGINT using Ctrl-C, if you want to interrupt the execution send SIGINT two times")
 	ctx, cancel := context.WithCancel(context.Background())
 	sigCh := make(chan os.Signal, 1)
 
@@ -99,16 +99,19 @@ func (o *TraceRunnerOptions) Run() error {
 	go func() {
 		killable := false
 		defer cancel()
-	M:
-		select {
-		case <-ctx.Done():
-			return
-		case <-sigCh:
-			if !killable {
-				killable = true
-				goto M
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-sigCh:
+				if !killable {
+					killable = true
+					fmt.Println("\nfirst SIGINT received, now if your program had maps and did not free them it should print them out")
+					continue
+				}
+				return
 			}
-			return
 		}
 	}()
 
