@@ -1,6 +1,7 @@
 ARG bpftracesha
+ARG imagenamebase
 
-FROM quay.io/fntlnz/kubectl-trace-bpftrace-base:${bpftracesha} as bpftrace
+FROM ${imagenamebase}:${bpftracesha} as bpftrace
 FROM golang:1.11.4-alpine3.8 as gobuilder
 
 RUN apk update
