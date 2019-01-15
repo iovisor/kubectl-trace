@@ -12,6 +12,8 @@ var imageName string
 var buildTime string
 var versionFormat = "git commit: %s\nbuild date: %s"
 var imageNameTagFormat = "%s:%s"
+var defaultImageName = "quay.io/fntlnz/kubectl-trace-bpftrace"
+var defaultImageTag = "latest"
 
 // ImageName returns the container image name defined in Makefile
 func ImageName() string {
@@ -23,11 +25,15 @@ func GitCommit() string {
 }
 
 func ImageNameTag() string {
-	commit := GitCommit()
-	if len(commit) == 0 {
-		return fmt.Sprintf(imageNameTagFormat, ImageName(), "latest")
+	imageName := ImageName()
+	tag := GitCommit()
+	if len(tag) == 0 {
+		tag = defaultImageTag
 	}
-	return fmt.Sprintf(imageNameTagFormat, ImageName(), GitCommit())
+	if len(imageName) == 0 {
+		imageName = defaultImageName
+	}
+	return fmt.Sprintf(imageNameTagFormat, imageName, tag)
 }
 
 func Time() *time.Time {
