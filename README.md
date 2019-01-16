@@ -4,7 +4,12 @@
 
 - [Installation](#installation)
 - [Usage](#usage)
+  * [Run a program from string literal](#run-a-program-from-string-literal)
+  * [Run a program from file](#run-a-program-from-file)
+  * [Run a program against a Pod](#run-a-program-against-a-pod)
   * [Running against a Pod vs against a Node](#running-against-a-pod-vs-against-a-node)
+  * [Using a custom service account](#using-a-custom-service-account)
+  * [Executing in a cluster using Pod Security Policies](#executing-in-a-cluster-using-pod-security-policies)
   * [More bpftrace programs](#more-bpftrace-programs)
 - [Status of the project](#status-of-the-project)
 - [Contributing](#contributing)
