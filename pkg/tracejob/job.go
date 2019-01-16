@@ -24,14 +24,15 @@ type TraceJobClient struct {
 }
 
 type TraceJob struct {
-	Name          string
-	ID            types.UID
-	Namespace     string
-	Hostname      string
-	Program       string
-	PodUID        string
-	ContainerName string
-	IsPod         bool
+	Name           string
+	ID             types.UID
+	Namespace      string
+	ServiceAccount string
+	Hostname       string
+	Program        string
+	PodUID         string
+	ContainerName  string
+	IsPod          bool
 }
 
 // WithOutStream setup a file stream to output trace job operation information
@@ -101,7 +102,6 @@ func (t *TraceJobClient) findConfigMapsWithFilter(nf TraceJobFilter) ([]apiv1.Co
 }
 
 func (t *TraceJobClient) GetJob(nf TraceJobFilter) ([]TraceJob, error) {
-
 	jl, err := t.findJobsWithFilter(nf)
 	if err != nil {
 		return nil, err
@@ -218,7 +218,8 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: commonMeta,
 				Spec: apiv1.PodSpec{
-					HostPID: true,
+					HostPID:            true,
+					ServiceAccountName: nj.ServiceAccount,
 					Volumes: []apiv1.Volume{
 						apiv1.Volume{
 							Name: "program",
