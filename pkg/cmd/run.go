@@ -54,13 +54,14 @@ type RunOptions struct {
 	explicitNamespace bool
 
 	// Local to this command
-	container   string
-	eval        string
-	program     string
-	resourceArg string
-	attach      bool
-	isPod       bool
-	podUID      string
+	container      string
+	eval           string
+	program        string
+	resourceArg    string
+	attach         bool
+	isPod          bool
+	podUID         string
+	serviceAccount string
 
 	nodeName string
 
@@ -103,6 +104,7 @@ func NewRunCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 	cmd.Flags().BoolVarP(&o.attach, "attach", "a", o.attach, "Wheter or not to attach to the trace program once it is created")
 	cmd.Flags().StringVarP(&o.eval, "eval", "e", "", "Literal string to be evaluated as a bpftrace program")
 	cmd.Flags().StringVarP(&o.program, "filename", "f", "", "File containing a bpftrace program")
+	cmd.Flags().StringVar(&o.serviceAccount, "serviceaccount", "default", "Service account to use to set in the pod spec of the kubectl-trace job")
 
 	return cmd
 }
@@ -265,14 +267,15 @@ func (o *RunOptions) Run() error {
 	}
 
 	tj := tracejob.TraceJob{
-		Name:          fmt.Sprintf("%s%s", meta.ObjectNamePrefix, string(juid)),
-		Namespace:     o.namespace,
-		ID:            juid,
-		Hostname:      o.nodeName,
-		Program:       o.program,
-		PodUID:        o.podUID,
-		ContainerName: o.container,
-		IsPod:         o.isPod,
+		Name:           fmt.Sprintf("%s%s", meta.ObjectNamePrefix, string(juid)),
+		Namespace:      o.namespace,
+		ServiceAccount: o.serviceAccount,
+		ID:             juid,
+		Hostname:       o.nodeName,
+		Program:        o.program,
+		PodUID:         o.podUID,
+		ContainerName:  o.container,
+		IsPod:          o.isPod,
 	}
 
 	job, err := tc.CreateJob(tj)
