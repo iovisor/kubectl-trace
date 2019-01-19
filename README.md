@@ -2,7 +2,10 @@
 
 <!-- toc -->
 
-- [Installation](#installation)
+- [Installing](#installing)
+  * [Source](#source)
+  * [Packages](#packages)
+    + [Arch - AUR](#arch---aur)
 - [Usage](#usage)
   * [Run a program from string literal](#run-a-program-from-string-literal)
   * [Run a program from file](#run-a-program-from-file)
