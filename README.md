@@ -1,8 +1,16 @@
 # kubectl trace
 
+`kubectl trace` is a kubectl plugin that allows you to schedule the execution
+of [bpftrace](https://github.com/iovisor/bpftrace) programs in your Kubernetes cluster.
+
+![Screenshot showing the read.bt program for kubectl-trace](docs/img/intro.png)
+
 <!-- toc -->
 
-- [Installation](#installation)
+- [Installing](#installing)
+  * [Source](#source)
+  * [Packages](#packages)
+    + [Arch - AUR](#arch---aur)
 - [Usage](#usage)
   * [Run a program from string literal](#run-a-program-from-string-literal)
   * [Run a program from file](#run-a-program-from-file)
@@ -16,18 +24,30 @@
 
 <!-- tocstop -->
 
-`kubectl trace` is a kubectl plugin that allows you to schedule the execution
-of [bpftrace](https://github.com/iovisor/bpftrace) programs in your Kubernetes cluster.
+## Installing
 
-![Screenshot showing the read.bt program for kubectl-trace](docs/img/intro.png)
-
-## Installation
+### Source
 
 ```
 go get -u github.com/iovisor/kubectl-trace/cmd/kubectl-trace
 ```
 
 This will download and compile `kubectl-trace` so that you can use it as a kubectl plugin with `kubectl trace`
+
+### Packages
+
+You can't find the package for your distro of choice?
+You are very welcome and encouraged to create it and then [open an issue](https://github.com/iovisor/kubectl-trace/issues/new) to inform us for review.
+
+#### Arch - AUR
+
+The official [PKGBUILD](https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=kubectl-trace-git) is on AUR.
+
+If you use `yay` to manage AUR packages you can do:
+
+```
+yay -S kubectl-trace-git
+```
 
 ## Usage
 
