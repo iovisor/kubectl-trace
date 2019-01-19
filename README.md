@@ -21,13 +21,30 @@ of [bpftrace](https://github.com/iovisor/bpftrace) programs in your Kubernetes c
 
 ![Screenshot showing the read.bt program for kubectl-trace](docs/img/intro.png)
 
-## Installation
+## Installing
+
+### Source
 
 ```
 go get -u github.com/iovisor/kubectl-trace/cmd/kubectl-trace
 ```
 
 This will download and compile `kubectl-trace` so that you can use it as a kubectl plugin with `kubectl trace`
+
+### Packages
+
+You can't find the package for your distro of choice?
+You are very welcome and encouraged to create it and then [open an issue](https://github.com/iovisor/kubectl-trace/issues/new) to inform us for review.
+
+#### Arch - AUR
+
+The official [PKGBUILD](https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=kubectl-trace-git) is on AUR.
+
+If you use `yay` to manage AUR packages you can do:
+
+```
+yay -S kubectl-trace-git
+```
 
 ## Usage
 
