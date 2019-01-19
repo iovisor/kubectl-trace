@@ -1,5 +1,10 @@
 # kubectl trace
 
+`kubectl trace` is a kubectl plugin that allows you to schedule the execution
+of [bpftrace](https://github.com/iovisor/bpftrace) programs in your Kubernetes cluster.
+
+![Screenshot showing the read.bt program for kubectl-trace](docs/img/intro.png)
+
 <!-- toc -->
 
 - [Installing](#installing)
@@ -18,11 +23,6 @@
 - [Contributing](#contributing)
 
 <!-- tocstop -->
-
-`kubectl trace` is a kubectl plugin that allows you to schedule the execution
-of [bpftrace](https://github.com/iovisor/bpftrace) programs in your Kubernetes cluster.
-
-![Screenshot showing the read.bt program for kubectl-trace](docs/img/intro.png)
 
 ## Installing
 
