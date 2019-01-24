@@ -1,4 +1,4 @@
-![kubectl trace logo](/docs/img/logo.png)
+<p align="center"><img src="/docs/img/logo.png" height="110" alt="kubectl trace logo" /></p>
 
 `kubectl trace` is a kubectl plugin that allows you to schedule the execution
 of [bpftrace](https://github.com/iovisor/bpftrace) programs in your Kubernetes cluster.
