@@ -238,7 +238,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 							},
 						},
 						apiv1.Volume{
-							Name: "modules",
+							Name: "modules-host",
 							VolumeSource: apiv1.VolumeSource{
 								HostPath: &apiv1.HostPathVolumeSource{
 									Path: "/lib/modules",
@@ -250,6 +250,69 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 							VolumeSource: apiv1.VolumeSource{
 								HostPath: &apiv1.HostPathVolumeSource{
 									Path: "/sys",
+								},
+							},
+						},
+						apiv1.Volume{
+							Name: "lsb-release",
+							VolumeSource: apiv1.VolumeSource{
+								HostPath: &apiv1.HostPathVolumeSource{
+									Path: "/etc/lsb-release",
+								},
+							},
+						},
+						apiv1.Volume{
+							Name: "os-release",
+							VolumeSource: apiv1.VolumeSource{
+								HostPath: &apiv1.HostPathVolumeSource{
+									Path: "/etc/os-release",
+								},
+							},
+						},
+						apiv1.Volume{
+							Name: "modules-dir",
+							VolumeSource: apiv1.VolumeSource{
+								HostPath: &apiv1.HostPathVolumeSource{
+									Path: "/var/cache/linux-headers/modules_dir",
+								},
+							},
+						},
+						apiv1.Volume{
+							Name: "linux-headers-generated",
+							VolumeSource: apiv1.VolumeSource{
+								HostPath: &apiv1.HostPathVolumeSource{
+									Path: "/var/cache/linux-headers/generated",
+								},
+							},
+						},
+					},
+					InitContainers: []apiv1.Container{
+						apiv1.Container{
+							Name:    "kubectl-trace-init",
+							Image:   version.InitImageNameTag(),
+							VolumeMounts: []apiv1.VolumeMount{
+								apiv1.VolumeMount{
+									Name:      "lsb-release",
+									MountPath: "/etc/lsb-release.host",
+									ReadOnly:  true,
+								},
+								apiv1.VolumeMount{
+									Name:      "os-release",
+									MountPath: "/etc/os-release.host",
+									ReadOnly:  true,
+								},
+								apiv1.VolumeMount{
+									Name:      "modules-dir",
+									MountPath: "/lib/modules",
+								},
+								apiv1.VolumeMount{
+									Name:      "modules-host",
+									MountPath: "/lib/modules.host",
+									ReadOnly:  true,
+								},
+								apiv1.VolumeMount{
+									Name:      "linux-headers-generated",
+									MountPath: "/usr/src/",
 								},
 							},
 						},
@@ -278,13 +341,23 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 									ReadOnly:  true,
 								},
 								apiv1.VolumeMount{
-									Name:      "modules",
+									Name:      "sys",
+									MountPath: "/sys",
+									ReadOnly:  true,
+								},
+								apiv1.VolumeMount{
+									Name:      "modules-dir",
 									MountPath: "/lib/modules",
 									ReadOnly:  true,
 								},
 								apiv1.VolumeMount{
-									Name:      "sys",
-									MountPath: "/sys",
+									Name:      "modules-host",
+									MountPath: "/lib/modules.host",
+									ReadOnly:  true,
+								},
+								apiv1.VolumeMount{
+									Name:      "linux-headers-generated",
+									MountPath: "/usr/src/",
 									ReadOnly:  true,
 								},
 							},
