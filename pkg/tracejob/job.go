@@ -13,6 +13,7 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/api/resource"
 	batchv1typed "k8s.io/client-go/kubernetes/typed/batch/v1"
 	corev1typed "k8s.io/client-go/kubernetes/typed/core/v1"
 )
@@ -255,6 +256,16 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 							Command: bpfTraceCmd,
 							TTY:     true,
 							Stdin:   true,
+							Resources: apiv1.ResourceRequirements{
+							        Requests: apiv1.ResourceList{
+							                apiv1.ResourceCPU:    resource.MustParse("100m"),
+							                apiv1.ResourceMemory: resource.MustParse("100Mi"),
+							        },
+							        Limits: apiv1.ResourceList{
+							                apiv1.ResourceCPU:    resource.MustParse("1"),
+							                apiv1.ResourceMemory: resource.MustParse("1G"),
+							        },
+							},
 							VolumeMounts: []apiv1.VolumeMount{
 								apiv1.VolumeMount{
 									Name:      "program",
