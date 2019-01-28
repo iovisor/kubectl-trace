@@ -38,6 +38,7 @@ func ImageNameTag() string {
 	return fmt.Sprintf(imageNameTagFormat, imageName, tag)
 }
 
+// InitImageNameTag returns the full image path and tag for the initContainer
 func InitImageNameTag() string {
 	return fmt.Sprintf(imageNameTagFormat, defaultInitImageName, defaultInitImageTag)
 }
