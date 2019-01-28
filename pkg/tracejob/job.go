@@ -288,8 +288,18 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 					},
 					InitContainers: []apiv1.Container{
 						apiv1.Container{
-							Name:    "kubectl-trace-init",
-							Image:   version.InitImageNameTag(),
+							Name:  "kubectl-trace-init",
+							Image: version.InitImageNameTag(),
+							Resources: apiv1.ResourceRequirements{
+								Requests: apiv1.ResourceList{
+									apiv1.ResourceCPU:    resource.MustParse("100m"),
+									apiv1.ResourceMemory: resource.MustParse("100Mi"),
+								},
+								Limits: apiv1.ResourceList{
+									apiv1.ResourceCPU:    resource.MustParse("1"),
+									apiv1.ResourceMemory: resource.MustParse("1G"),
+								},
+							},
 							VolumeMounts: []apiv1.VolumeMount{
 								apiv1.VolumeMount{
 									Name:      "lsb-release",
