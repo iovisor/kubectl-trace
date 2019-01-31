@@ -53,17 +53,17 @@ type RunOptions struct {
 	namespace         string
 	explicitNamespace bool
 
-	// Local to this command
+	// Flags local to this command
 	container      string
 	eval           string
 	program        string
-	resourceArg    string
-	attach         bool
-	isPod          bool
-	podUID         string
 	serviceAccount string
 
-	nodeName string
+	resourceArg string
+	attach      bool
+	isPod       bool
+	podUID      string
+	nodeName    string
 
 	clientConfig *rest.Config
 }
