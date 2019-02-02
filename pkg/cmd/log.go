@@ -85,6 +85,7 @@ func NewLogCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 	return cmd
 }
 
+// Validate validates the arguments and flags populating LogOptions accordingly.
 func (o *LogOptions) Validate(cmd *cobra.Command, args []string) error {
 	if meta.IsObjectName(args[0]) {
 		o.traceName = &args[0]
@@ -96,6 +97,7 @@ func (o *LogOptions) Validate(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// Complete completes the setup of the command.
 func (o *LogOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
 	// Prepare namespace
 	var err error
