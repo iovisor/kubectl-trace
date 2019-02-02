@@ -2,18 +2,15 @@ package tracejob
 
 import (
 	"fmt"
-
-	"github.com/iovisor/kubectl-trace/pkg/version"
-
 	"io"
 	"io/ioutil"
 
 	"github.com/iovisor/kubectl-trace/pkg/meta"
 	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/api/resource"
 	batchv1typed "k8s.io/client-go/kubernetes/typed/batch/v1"
 	corev1typed "k8s.io/client-go/kubernetes/typed/core/v1"
 )
@@ -24,16 +21,20 @@ type TraceJobClient struct {
 	outStream    io.Writer
 }
 
+// TraceJob is a container of info needed to create the job responsible for tracing.
 type TraceJob struct {
-	Name           string
-	ID             types.UID
-	Namespace      string
-	ServiceAccount string
-	Hostname       string
-	Program        string
-	PodUID         string
-	ContainerName  string
-	IsPod          bool
+	Name             string
+	ID               types.UID
+	Namespace        string
+	ServiceAccount   string
+	Hostname         string
+	Program          string
+	PodUID           string
+	ContainerName    string
+	IsPod            bool
+	ImageNameTag     string
+	InitImageNameTag string
+	FetchHeaders     bool
 }
 
 // WithOutStream setup a file stream to output trace job operation information
@@ -252,19 +253,19 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 					Containers: []apiv1.Container{
 						apiv1.Container{
 							Name:    nj.Name,
-							Image:   version.ImageNameTag(),
+							Image:   nj.ImageNameTag,
 							Command: bpfTraceCmd,
 							TTY:     true,
 							Stdin:   true,
 							Resources: apiv1.ResourceRequirements{
-							        Requests: apiv1.ResourceList{
-							                apiv1.ResourceCPU:    resource.MustParse("100m"),
-							                apiv1.ResourceMemory: resource.MustParse("100Mi"),
-							        },
-							        Limits: apiv1.ResourceList{
-							                apiv1.ResourceCPU:    resource.MustParse("1"),
-							                apiv1.ResourceMemory: resource.MustParse("1G"),
-							        },
+								Requests: apiv1.ResourceList{
+									apiv1.ResourceCPU:    resource.MustParse("100m"),
+									apiv1.ResourceMemory: resource.MustParse("100Mi"),
+								},
+								Limits: apiv1.ResourceList{
+									apiv1.ResourceCPU:    resource.MustParse("1"),
+									apiv1.ResourceMemory: resource.MustParse("1G"),
+								},
 							},
 							VolumeMounts: []apiv1.VolumeMount{
 								apiv1.VolumeMount{
