@@ -26,7 +26,7 @@ IMAGE_BPFTRACE_BASE := $(IMAGE_NAME_BASE):$(BPFTRACESHA)
 
 IMAGE_BUILD_FLAGS ?= "--no-cache"
 
-LDFLAGS := -ldflags '-X github.com/iovisor/kubectl-trace/pkg/version.buildTime=$(shell date +%s) -X github.com/iovisor/kubectl-trace/pkg/version.gitCommit=${GIT_COMMIT} -X github.com/iovisor/kubectl-trace/pkg/cmd.imageNameTag=${IMAGE_TRACERUNNER_COMMIT} -X github.com/iovisor/kubectl-trace/pkg/cmd.initImageNameTag=${IMAGE_INITCONTAINER_COMMIT}'
+LDFLAGS := -ldflags '-X github.com/iovisor/kubectl-trace/pkg/version.buildTime=$(shell date +%s) -X github.com/iovisor/kubectl-trace/pkg/version.gitCommit=${GIT_COMMIT} -X github.com/iovisor/kubectl-trace/pkg/cmd.ImageNameTag=${IMAGE_TRACERUNNER_COMMIT} -X github.com/iovisor/kubectl-trace/pkg/cmd.InitImageNameTag=${IMAGE_INITCONTAINER_COMMIT}'
 TESTPACKAGES := $(shell go list ./... | grep -v github.com/iovisor/kubectl-trace/integration)
 
 kubectl_trace ?= _output/bin/kubectl-trace
@@ -71,7 +71,7 @@ test:
 
 .PHONY: integration
 integration:
-	TEST_KUBECTLTRACE_BINARY=$(shell pwd)/$(kubectl_trace) $(GO)  test ${LDFLAGS} -v ./integration/...
+	TEST_KUBECTLTRACE_BINARY=$(shell pwd)/$(kubectl_trace) $(GO) test ${LDFLAGS} -v ./integration/...
 
 .PHONY: bpftraceimage/build
 bpftraceimage/build:

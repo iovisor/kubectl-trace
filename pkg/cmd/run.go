@@ -21,8 +21,10 @@ import (
 )
 
 const (
-	imageNameTag     = "quay.io/fntlnz/kubectl-trace-bpftrace:latest"
-	initImageNameTag = "quay.io/dalehamel/kubectl-trace-init"
+	// ImageNameTag represents the default tracerunner image
+	ImageNameTag = "quay.io/fntlnz/kubectl-trace-bpftrace:latest"
+	// InitImageNameTag represents the default init container image
+	InitImageNameTag = "quay.io/dalehamel/kubectl-trace-init:latest"
 )
 
 var (
@@ -85,8 +87,8 @@ func NewRunOptions(streams genericclioptions.IOStreams) *RunOptions {
 		IOStreams: streams,
 
 		serviceAccount: "default",
-		imageName:      imageNameTag,
-		initImageName:  initImageNameTag,
+		imageName:      ImageNameTag,
+		initImageName:  InitImageNameTag,
 	}
 }
 
