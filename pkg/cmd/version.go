@@ -8,6 +8,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
+// NewVersionCommand provides the version command.
 func NewVersionCommand(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
