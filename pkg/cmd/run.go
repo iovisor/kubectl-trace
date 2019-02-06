@@ -20,7 +20,7 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-const (
+var (
 	// ImageNameTag represents the default tracerunner image
 	ImageNameTag = "quay.io/fntlnz/kubectl-trace-bpftrace:latest"
 	// InitImageNameTag represents the default init container image
