@@ -34,7 +34,7 @@ var (
 
 	runExamples = `
   # Count system calls using tracepoints on a specific node
-  %[1]s trace run node/kubernetes-node-emt8.c.myproject.internal -e 'kprobe:do_sys_open { printf("%s: %s\n", comm, str(arg1)) }'
+  %[1]s trace run node/kubernetes-node-emt8.c.myproject.internal -e 'kprobe:do_sys_open { printf("%%s: %%s\n", comm, str(arg1)) }'
 
   # Execute a bpftrace program from file on a specific node
   %[1]s trace run node/kubernetes-node-emt8.c.myproject.internal -f read.bt
