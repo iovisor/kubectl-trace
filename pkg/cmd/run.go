@@ -120,13 +120,13 @@ func NewRunCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 	}
 
 	cmd.Flags().StringVarP(&o.container, "container", "c", o.container, "Specify the container")
-	cmd.Flags().BoolVarP(&o.attach, "attach", "a", o.attach, "Wheter or not to attach to the trace program once it is created")
+	cmd.Flags().BoolVarP(&o.attach, "attach", "a", o.attach, "Whether or not to attach to the trace program once it is created")
 	cmd.Flags().StringVarP(&o.eval, "eval", "e", o.eval, "Literal string to be evaluated as a bpftrace program")
 	cmd.Flags().StringVarP(&o.program, "filename", "f", o.program, "File containing a bpftrace program")
 	cmd.Flags().StringVar(&o.serviceAccount, "serviceaccount", o.serviceAccount, "Service account to use to set in the pod spec of the kubectl-trace job")
 	cmd.Flags().StringVar(&o.imageName, "imagename", o.imageName, "Custom image for the tracerunner")
 	cmd.Flags().StringVar(&o.initImageName, "init-imagename", o.initImageName, "Custom image for the init container responsible to fetch and prepare linux headers")
-	cmd.Flags().BoolVar(&o.fetchHeaders, "fetch-headers", o.fetchHeaders, "Wheter to fetch linux headers or not")
+	cmd.Flags().BoolVar(&o.fetchHeaders, "fetch-headers", o.fetchHeaders, "Whether to fetch linux headers or not")
 
 	return cmd
 }
