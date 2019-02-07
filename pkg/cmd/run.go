@@ -42,10 +42,12 @@ var (
   # Run an bpftrace inline program on a pod container
   %[1]s trace run pod/nginx -c nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }"
   %[1]s trace run pod/nginx nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }"
-  %[1]s trace run pod/nginx nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }"
 
   # Run a bpftrace inline program on a pod container with a custom image for the init container responsible to fetch linux headers 
-  %[1]s trace run pod/nginx nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); } --init-imagename=quay.io/custom-init-image-name --fetch-headers"`
+  %[1]s trace run pod/nginx nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); } --init-imagename=quay.io/custom-init-image-name --fetch-headers"
+
+  # Run a bpftrace inline program on a pod container with a custom image for the bpftrace container that will run your program in the cluster
+  %[1]s trace run pod/nginx nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); } --imagename=quay.io/custom-bpftrace-image-name"`
 
 	runCommand                    = "run"
 	usageString                   = "(POD | TYPE/NAME)"
