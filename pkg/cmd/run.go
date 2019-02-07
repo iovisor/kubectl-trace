@@ -24,7 +24,7 @@ var (
 	// ImageNameTag represents the default tracerunner image
 	ImageNameTag = "quay.io/fntlnz/kubectl-trace-bpftrace:latest"
 	// InitImageNameTag represents the default init container image
-	InitImageNameTag = "quay.io/dalehamel/kubectl-trace-init:latest"
+	InitImageNameTag = "quay.io/fntlnz/kubectl-trace-init:latest"
 )
 
 var (

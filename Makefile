@@ -11,7 +11,7 @@ GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
 IMAGE_NAME      ?= quay.io/fntlnz/kubectl-trace-bpftrace
 IMAGE_NAME_BASE ?= quay.io/fntlnz/kubectl-trace-bpftrace-base
 
-IMAGE_NAME_INIT ?= quay.io/dalehamel/kubectl-trace-init
+IMAGE_NAME_INIT ?= quay.io/fntlnz/kubectl-trace-init
 
 IMAGE_TRACERUNNER_BRANCH := $(IMAGE_NAME):$(GIT_BRANCH_CLEAN)
 IMAGE_TRACERUNNER_COMMIT := $(IMAGE_NAME):$(GIT_COMMIT)
