@@ -102,6 +102,7 @@ func (o *DeleteOptions) Validate(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// Complete completes the setup of the command.
 func (o *DeleteOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
 	// Prepare namespace
 	var err error

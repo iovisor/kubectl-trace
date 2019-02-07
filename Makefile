@@ -11,16 +11,22 @@ GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
 IMAGE_NAME      ?= quay.io/fntlnz/kubectl-trace-bpftrace
 IMAGE_NAME_BASE ?= quay.io/fntlnz/kubectl-trace-bpftrace-base
 
+IMAGE_NAME_INIT ?= quay.io/fntlnz/kubectl-trace-init
+
 IMAGE_TRACERUNNER_BRANCH := $(IMAGE_NAME):$(GIT_BRANCH_CLEAN)
 IMAGE_TRACERUNNER_COMMIT := $(IMAGE_NAME):$(GIT_COMMIT)
 IMAGE_TRACERUNNER_LATEST := $(IMAGE_NAME):latest
+
+IMAGE_INITCONTAINER_BRANCH := $(IMAGE_NAME_INIT):$(GIT_BRANCH_CLEAN)
+IMAGE_INITCONTAINER_COMMIT := $(IMAGE_NAME_INIT):$(GIT_COMMIT)
+IMAGE_INITCONTAINER_LATEST := $(IMAGE_NAME_INIT):latest
 
 BPFTRACESHA ?= 2ae2a53f62622631a304def6c193680e603994e3
 IMAGE_BPFTRACE_BASE := $(IMAGE_NAME_BASE):$(BPFTRACESHA)
 
 IMAGE_BUILD_FLAGS ?= "--no-cache"
 
-LDFLAGS := -ldflags '-X github.com/iovisor/kubectl-trace/pkg/version.buildTime=$(shell date +%s) -X github.com/iovisor/kubectl-trace/pkg/version.gitCommit=${GIT_COMMIT} -X github.com/iovisor/kubectl-trace/pkg/version.imageName=${IMAGE_NAME}'
+LDFLAGS := -ldflags '-X github.com/iovisor/kubectl-trace/pkg/version.buildTime=$(shell date +%s) -X github.com/iovisor/kubectl-trace/pkg/version.gitCommit=${GIT_COMMIT} -X github.com/iovisor/kubectl-trace/pkg/cmd.ImageNameTag=${IMAGE_TRACERUNNER_COMMIT} -X github.com/iovisor/kubectl-trace/pkg/cmd.InitImageNameTag=${IMAGE_INITCONTAINER_COMMIT}'
 TESTPACKAGES := $(shell go list ./... | grep -v github.com/iovisor/kubectl-trace/integration)
 
 kubectl_trace ?= _output/bin/kubectl-trace
@@ -65,7 +71,7 @@ test:
 
 .PHONY: integration
 integration:
-	TEST_KUBECTLTRACE_BINARY=$(shell pwd)/$(kubectl_trace) $(GO)  test ${LDFLAGS} -v ./integration/...
+	TEST_KUBECTLTRACE_BINARY=$(shell pwd)/$(kubectl_trace) $(GO) test ${LDFLAGS} -v ./integration/...
 
 .PHONY: bpftraceimage/build
 bpftraceimage/build:

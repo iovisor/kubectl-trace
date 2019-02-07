@@ -111,6 +111,7 @@ func (o *GetOptions) Validate(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// Complete completes the setup of the command.
 func (o *GetOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
 	// Prepare namespace
 	var err error
@@ -125,7 +126,7 @@ func (o *GetOptions) Complete(factory factory.Factory, cmd *cobra.Command, args 
 		o.namespace = ""
 	}
 
-	//// Prepare client
+	// Prepare client
 	o.clientConfig, err = factory.ToRESTConfig()
 	if err != nil {
 		return err

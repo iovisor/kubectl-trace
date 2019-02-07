@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/go-check/check"
-	"github.com/iovisor/kubectl-trace/pkg/version"
+	"github.com/iovisor/kubectl-trace/pkg/cmd"
 	"gotest.tools/icmd"
 	"sigs.k8s.io/kind/pkg/cluster"
 	"sigs.k8s.io/kind/pkg/cluster/config/encoding"
@@ -59,7 +59,7 @@ func (k *KubectlTraceSuite) SetUpSuite(c *check.C) {
 
 	// copy the bpftrace image to the nodes
 	for _, n := range nodes {
-		loadcomm := fmt.Sprintf("docker save %s | docker exec -i %s docker load", version.ImageNameTag(), n.String())
+		loadcomm := fmt.Sprintf("docker save %s | docker exec -i %s docker load", cmd.ImageNameTag, n.String())
 		res := icmd.RunCommand("bash", "-c", loadcomm)
 		c.Assert(res.Error, check.IsNil)
 	}

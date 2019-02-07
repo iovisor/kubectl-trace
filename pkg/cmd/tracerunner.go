@@ -50,7 +50,7 @@ func NewTraceRunnerCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&o.podUID, "poduid", "p", o.podUID, "Specify the pod UID")
 	cmd.Flags().StringVarP(&o.programPath, "program", "f", "program.bt", "Specify the bpftrace program path")
 	cmd.Flags().StringVarP(&o.bpftraceBinaryPath, "bpftracebinary", "b", "/bin/bpftrace", "Specify the bpftrace binary path")
-	cmd.Flags().BoolVar(&o.inPod, "inpod", false, "Wether or not run this bpftrace in a pod's container process namespace")
+	cmd.Flags().BoolVar(&o.inPod, "inpod", false, "Whether or not run this bpftrace in a pod's container process namespace")
 	return cmd
 }
 
@@ -62,6 +62,7 @@ func (o *TraceRunnerOptions) Validate(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// Complete completes the setup of the command.
 func (o *TraceRunnerOptions) Complete(cmd *cobra.Command, args []string) error {
 	return nil
 }

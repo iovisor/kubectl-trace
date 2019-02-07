@@ -21,13 +21,20 @@ import (
 )
 
 var (
+	// ImageNameTag represents the default tracerunner image
+	ImageNameTag = "quay.io/fntlnz/kubectl-trace-bpftrace:latest"
+	// InitImageNameTag represents the default init container image
+	InitImageNameTag = "quay.io/fntlnz/kubectl-trace-init:latest"
+)
+
+var (
 	runShort = `Execute a bpftrace program on resources` // Wrap with i18n.T()
 
 	runLong = runShort
 
 	runExamples = `
   # Count system calls using tracepoints on a specific node
-  %[1]s trace run node/kubernetes-node-emt8.c.myproject.internal -e 'kprobe:do_sys_open { printf("%s: %s\n", comm, str(arg1)) }'
+  %[1]s trace run node/kubernetes-node-emt8.c.myproject.internal -e 'kprobe:do_sys_open { printf("%%s: %%s\n", comm, str(arg1)) }'
 
   # Execute a bpftrace program from file on a specific node
   %[1]s trace run node/kubernetes-node-emt8.c.myproject.internal -f read.bt
@@ -35,7 +42,12 @@ var (
   # Run an bpftrace inline program on a pod container
   %[1]s trace run pod/nginx -c nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }"
   %[1]s trace run pod/nginx nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }"
-  %[1]s trace run pod/nginx nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }"`
+
+  # Run a bpftrace inline program on a pod container with a custom image for the init container responsible to fetch linux headers 
+  %[1]s trace run pod/nginx nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); } --init-imagename=quay.io/custom-init-image-name --fetch-headers"
+
+  # Run a bpftrace inline program on a pod container with a custom image for the bpftrace container that will run your program in the cluster
+  %[1]s trace run pod/nginx nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); } --imagename=quay.io/custom-bpftrace-image-name"`
 
 	runCommand                    = "run"
 	usageString                   = "(POD | TYPE/NAME)"
@@ -53,17 +65,20 @@ type RunOptions struct {
 	namespace         string
 	explicitNamespace bool
 
-	// Local to this command
+	// Flags local to this command
 	container      string
 	eval           string
 	program        string
-	resourceArg    string
-	attach         bool
-	isPod          bool
-	podUID         string
 	serviceAccount string
+	imageName      string
+	initImageName  string
+	fetchHeaders   bool
 
-	nodeName string
+	resourceArg string
+	attach      bool
+	isPod       bool
+	podUID      string
+	nodeName    string
 
 	clientConfig *rest.Config
 }
@@ -72,6 +87,10 @@ type RunOptions struct {
 func NewRunOptions(streams genericclioptions.IOStreams) *RunOptions {
 	return &RunOptions{
 		IOStreams: streams,
+
+		serviceAccount: "default",
+		imageName:      ImageNameTag,
+		initImageName:  InitImageNameTag,
 	}
 }
 
@@ -101,10 +120,13 @@ func NewRunCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 	}
 
 	cmd.Flags().StringVarP(&o.container, "container", "c", o.container, "Specify the container")
-	cmd.Flags().BoolVarP(&o.attach, "attach", "a", o.attach, "Wheter or not to attach to the trace program once it is created")
-	cmd.Flags().StringVarP(&o.eval, "eval", "e", "", "Literal string to be evaluated as a bpftrace program")
-	cmd.Flags().StringVarP(&o.program, "filename", "f", "", "File containing a bpftrace program")
-	cmd.Flags().StringVar(&o.serviceAccount, "serviceaccount", "default", "Service account to use to set in the pod spec of the kubectl-trace job")
+	cmd.Flags().BoolVarP(&o.attach, "attach", "a", o.attach, "Whether or not to attach to the trace program once it is created")
+	cmd.Flags().StringVarP(&o.eval, "eval", "e", o.eval, "Literal string to be evaluated as a bpftrace program")
+	cmd.Flags().StringVarP(&o.program, "filename", "f", o.program, "File containing a bpftrace program")
+	cmd.Flags().StringVar(&o.serviceAccount, "serviceaccount", o.serviceAccount, "Service account to use to set in the pod spec of the kubectl-trace job")
+	cmd.Flags().StringVar(&o.imageName, "imagename", o.imageName, "Custom image for the tracerunner")
+	cmd.Flags().StringVar(&o.initImageName, "init-imagename", o.initImageName, "Custom image for the init container responsible to fetch and prepare linux headers")
+	cmd.Flags().BoolVar(&o.fetchHeaders, "fetch-headers", o.fetchHeaders, "Whether to fetch linux headers or not")
 
 	return cmd
 }
@@ -276,6 +298,10 @@ func (o *RunOptions) Run() error {
 		PodUID:         o.podUID,
 		ContainerName:  o.container,
 		IsPod:          o.isPod,
+		// todo(dalehamel) > following fields to be used for #48
+		ImageNameTag:     o.imageName,
+		InitImageNameTag: o.initImageName,
+		FetchHeaders:     o.fetchHeaders,
 	}
 
 	job, err := tc.CreateJob(tj)

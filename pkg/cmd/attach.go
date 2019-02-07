@@ -92,6 +92,7 @@ func (o *AttachOptions) Validate(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// Complete completes the setup of the command.
 func (o *AttachOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
 	// Prepare namespace
 	var err error
