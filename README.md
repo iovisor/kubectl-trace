@@ -49,6 +49,16 @@ If you use `yay` to manage AUR packages you can do:
 yay -S kubectl-trace-git
 ```
 
+## Architecture
+
+Since it is a kubectl plugin, kubectl-trace doesn't require you to install any component directly
+to your kubernetes cluster in order to execute your bpftrace programs, however when you point it to
+a cluster, it will schedule a temporary job there called `trace-runner` that executes the program.
+
+This figure, shows the general idea:
+
+![Kubectl trace architecture diagram](docs/img/kubectl-trace-architecture.png)
+
 ## Usage
 
 You don't need to setup anything on your cluster before using it, please don't use it already
@@ -62,7 +72,6 @@ on the node `ip-180-12-0-152.ec2.internal`.
 ```
 kubectl trace run ip-180-12-0-152.ec2.internal -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }"
 ```
-
 
 ### Run a program from file
 
