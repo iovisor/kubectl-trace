@@ -11,6 +11,7 @@ of [bpftrace](https://github.com/iovisor/bpftrace) programs in your Kubernetes c
   * [Source](#source)
   * [Packages](#packages)
     + [Arch - AUR](#arch---aur)
+- [Architecture](#architecture)
 - [Usage](#usage)
   * [Run a program from string literal](#run-a-program-from-string-literal)
   * [Run a program from file](#run-a-program-from-file)
