@@ -47,7 +47,7 @@ func (l *Logs) Run(jobID types.UID, namespace string, follow bool, timestamps bo
 	}
 
 	pod := &pl.Items[0]
-	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+	if pod.Status.Phase == corev1.PodFailed {
 		return fmt.Errorf(podPhaseNotAcceptedError, pod.Status.Phase)
 	}
 
