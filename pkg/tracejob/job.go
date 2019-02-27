@@ -35,6 +35,8 @@ type TraceJob struct {
 	ImageNameTag     string
 	InitImageNameTag string
 	FetchHeaders     bool
+	StartTime        metav1.Time
+	Status           TraceJobStatus
 }
 
 // WithOutStream setup a file stream to output trace job operation information
@@ -129,6 +131,8 @@ func (t *TraceJobClient) GetJob(nf TraceJobFilter) ([]TraceJob, error) {
 			ID:        types.UID(id),
 			Namespace: j.Namespace,
 			Hostname:  hostname,
+			StartTime: *j.Status.StartTime,
+			Status:    jobStatus(j),
 		}
 		tjobs = append(tjobs, tj)
 	}
@@ -361,4 +365,32 @@ func jobHostname(j batchv1.Job) (string, error) {
 	}
 
 	return "", fmt.Errorf("hostname not found for job")
+}
+
+// TraceJobStatus is a label for the running status of a trace job at the current time.
+type TraceJobStatus string
+
+// These are the valid status of traces.
+const (
+	// TraceJobRunning means the trace job has active pods.
+	TraceJobRunning TraceJobStatus = "Running"
+	// TraceJobCompleted means the trace job does not have any active pod and has success pods.
+	TraceJobCompleted TraceJobStatus = "Completed"
+	// TraceJobFailed means the trace job does not have any active or success pod and has fpods that failed.
+	TraceJobFailed TraceJobStatus = "Failed"
+	// TraceJobUnknown means that for some reason we do not have the information to determine the status.
+	TraceJobUnknown TraceJobStatus = "Unknown"
+)
+
+func jobStatus(j batchv1.Job) TraceJobStatus {
+	if j.Status.Active > 0 {
+		return TraceJobRunning
+	}
+	if j.Status.Succeeded > 0 {
+		return TraceJobCompleted
+	}
+	if j.Status.Failed > 0 {
+		return TraceJobFailed
+	}
+	return TraceJobUnknown
 }

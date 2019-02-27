@@ -4,12 +4,16 @@ import (
 	"fmt"
 	"io"
 	"text/tabwriter"
+	"time"
 
 	"github.com/iovisor/kubectl-trace/pkg/factory"
 	"github.com/iovisor/kubectl-trace/pkg/meta"
 	"github.com/iovisor/kubectl-trace/pkg/tracejob"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/duration"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -187,7 +191,21 @@ func jobsTablePrint(o io.Writer, jobs []tracejob.TraceJob) {
 	// them as missing.
 	fmt.Fprintf(w, format, "NAMESPACE", "NODE", "NAME", "STATUS", "AGE")
 	for _, j := range jobs {
-		fmt.Fprintf(w, "\n"+format, j.Namespace, j.Hostname, j.Name, "<missing>", "<missing>")
+		status := j.Status
+		if status == "" {
+			status = tracejob.TraceJobUnknown
+		}
+		fmt.Fprintf(w, "\n"+format, j.Namespace, j.Hostname, j.Name, status, translateTimestampSince(j.StartTime))
 	}
 	fmt.Fprintf(w, "\n")
+}
+
+// translateTimestampSince returns the elapsed time since timestamp in
+// human-readable approximation.
+func translateTimestampSince(timestamp metav1.Time) string {
+	if timestamp.IsZero() {
+		return "<unknown>"
+	}
+
+	return duration.HumanDuration(time.Since(timestamp.Time))
 }

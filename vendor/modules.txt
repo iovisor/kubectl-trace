@@ -246,6 +246,7 @@ k8s.io/api/storage/v1beta1
 k8s.io/apimachinery/pkg/apis/meta/v1
 k8s.io/apimachinery/pkg/types
 k8s.io/apimachinery/pkg/util/wait
+k8s.io/apimachinery/pkg/util/duration
 k8s.io/apimachinery/pkg/util/uuid
 k8s.io/apimachinery/pkg/api/meta
 k8s.io/apimachinery/pkg/runtime/schema
