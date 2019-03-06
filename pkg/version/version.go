@@ -10,37 +10,10 @@ import (
 var gitCommit string
 var buildTime string
 var versionFormat = "git commit: %s\nbuild date: %s"
-var imageNameTagFormat = "%s:%s"
-var defaultImageName = "quay.io/fntlnz/kubectl-trace-bpftrace"
-var defaultImageTag = "latest"
-var defaultInitImageName = "quay.io/dalehamel/kubectl-trace-init"
-var defaultInitImageTag = "latest"
-
-// ImageName returns the container image name defined in Makefile
-func ImageName() string {
-	return imageName
-}
 
 // GitCommit returns the git commit
 func GitCommit() string {
 	return gitCommit
-}
-
-func ImageNameTag() string {
-	imageName := ImageName()
-	tag := GitCommit()
-	if len(tag) == 0 {
-		tag = defaultImageTag
-	}
-	if len(imageName) == 0 {
-		imageName = defaultImageName
-	}
-	return fmt.Sprintf(imageNameTagFormat, imageName, tag)
-}
-
-// InitImageNameTag returns the full image path and tag for the initContainer
-func InitImageNameTag() string {
-	return fmt.Sprintf(imageNameTagFormat, defaultInitImageName, defaultInitImageTag)
 }
 
 // Time returns the build time
