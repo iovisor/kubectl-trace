@@ -22,9 +22,9 @@ import (
 
 var (
 	// ImageNameTag represents the default tracerunner image
-	ImageNameTag = "quay.io/fntlnz/kubectl-trace-bpftrace:latest"
+	ImageNameTag = "quay.io/iovisor/kubectl-trace-bpftrace:latest"
 	// InitImageNameTag represents the default init container image
-	InitImageNameTag = "quay.io/fntlnz/kubectl-trace-init:latest"
+	InitImageNameTag = "quay.io/iovisor/kubectl-trace-init:latest"
 )
 
 var (
