@@ -55,6 +55,14 @@ image/build:
 		-f Dockerfile.tracerunner .
 	$(DOCKER) tag $(IMAGE_TRACERUNNER_BRANCH) $(IMAGE_TRACERUNNER_COMMIT)
 
+.PHONY: image/build-init
+image/build-init:
+	$(DOCKER) build \
+		$(IMAGE_BUILD_FLAGS) \
+		-t $(IMAGE_INITCONTAINER_BRANCH) \
+		-f ./init/Dockerfile.initcontainer ./init
+	$(DOCKER) tag $(IMAGE_INITCONTAINER_BRANCH) $(IMAGE_INITCONTAINER_COMMIT)
+
 .PHONY: image/push
 image/push:
 	$(DOCKER) push $(IMAGE_TRACERUNNER_BRANCH)

@@ -238,7 +238,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 							},
 						},
 						apiv1.Volume{
-							Name: "modules",
+							Name: "modules-host",
 							VolumeSource: apiv1.VolumeSource{
 								HostPath: &apiv1.HostPathVolumeSource{
 									Path: "/lib/modules",
@@ -278,11 +278,6 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 									ReadOnly:  true,
 								},
 								apiv1.VolumeMount{
-									Name:      "modules",
-									MountPath: "/lib/modules",
-									ReadOnly:  true,
-								},
-								apiv1.VolumeMount{
 									Name:      "sys",
 									MountPath: "/sys",
 									ReadOnly:  true,
@@ -316,6 +311,110 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 		},
 	}
 
+	if nj.FetchHeaders {
+		// If we aren't downloading headers, add the initContainer and set up mounts
+		job.Spec.Template.Spec.InitContainers = []apiv1.Container{
+			apiv1.Container{
+				Name:  "kubectl-trace-init",
+				Image: nj.InitImageNameTag,
+				Resources: apiv1.ResourceRequirements{
+					Requests: apiv1.ResourceList{
+						apiv1.ResourceCPU:    resource.MustParse("100m"),
+						apiv1.ResourceMemory: resource.MustParse("100Mi"),
+					},
+					Limits: apiv1.ResourceList{
+						apiv1.ResourceCPU:    resource.MustParse("1"),
+						apiv1.ResourceMemory: resource.MustParse("1G"),
+					},
+				},
+				VolumeMounts: []apiv1.VolumeMount{
+					apiv1.VolumeMount{
+						Name:      "lsb-release",
+						MountPath: "/etc/lsb-release.host",
+						ReadOnly:  true,
+					},
+					apiv1.VolumeMount{
+						Name:      "os-release",
+						MountPath: "/etc/os-release.host",
+						ReadOnly:  true,
+					},
+					apiv1.VolumeMount{
+						Name:      "modules-dir",
+						MountPath: "/lib/modules",
+					},
+					apiv1.VolumeMount{
+						Name:      "modules-host",
+						MountPath: "/lib/modules.host",
+						ReadOnly:  true,
+					},
+					apiv1.VolumeMount{
+						Name:      "linux-headers-generated",
+						MountPath: "/usr/src/",
+					},
+				},
+			},
+		}
+
+		job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes,
+			apiv1.Volume{
+				Name: "lsb-release",
+				VolumeSource: apiv1.VolumeSource{
+					HostPath: &apiv1.HostPathVolumeSource{
+						Path: "/etc/lsb-release",
+					},
+				},
+			},
+			apiv1.Volume{
+				Name: "os-release",
+				VolumeSource: apiv1.VolumeSource{
+					HostPath: &apiv1.HostPathVolumeSource{
+						Path: "/etc/os-release",
+					},
+				},
+			},
+			apiv1.Volume{
+				Name: "modules-dir",
+				VolumeSource: apiv1.VolumeSource{
+					HostPath: &apiv1.HostPathVolumeSource{
+						Path: "/var/cache/linux-headers/modules_dir",
+					},
+				},
+			},
+			apiv1.Volume{
+				Name: "linux-headers-generated",
+				VolumeSource: apiv1.VolumeSource{
+					HostPath: &apiv1.HostPathVolumeSource{
+						Path: "/var/cache/linux-headers/generated",
+					},
+				},
+			})
+
+		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(job.Spec.Template.Spec.Containers[0].VolumeMounts,
+			apiv1.VolumeMount{
+				Name:      "modules-dir",
+				MountPath: "/lib/modules",
+				ReadOnly:  true,
+			},
+			apiv1.VolumeMount{
+				Name:      "modules-host",
+				MountPath: "/lib/modules.host",
+				ReadOnly:  true,
+			},
+			apiv1.VolumeMount{
+				Name:      "linux-headers-generated",
+				MountPath: "/usr/src/",
+				ReadOnly:  true,
+			})
+
+	} else {
+		// If we aren't downloading headers, unconditionally used the ones linked in /lib/modules
+		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(job.Spec.Template.Spec.Containers[0].VolumeMounts,
+			apiv1.VolumeMount{
+				Name:      "modules-host",
+				MountPath: "/lib/modules",
+				ReadOnly:  true,
+			})
+	}
 	if _, err := t.ConfigClient.Create(cm); err != nil {
 		return nil, err
 	}
