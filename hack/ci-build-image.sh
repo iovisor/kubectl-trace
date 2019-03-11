@@ -9,3 +9,4 @@ if [[ ! -z "$TRAVIS_PULL_REQUEST_BRANCH" ]]; then
 fi
 
 $make $makeopts image/build
+$make $makeopts image/build-init
