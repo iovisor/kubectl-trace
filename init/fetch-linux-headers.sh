@@ -14,6 +14,9 @@ generate_headers()
   zcat /proc/config.gz > .config
   make ARCH=x86 oldconfig > /dev/null
   make ARCH=x86 prepare > /dev/null
+
+  # Clean up abundant non-header files to speed-up copying
+  find ${BUILD_DIR} -regex '.*\.c\|.*\.txt\|.*Makefile\|.*Build\|.*Kconfig' -type f -delete
 }
 
 fetch_cos_linux_sources()
@@ -21,6 +24,16 @@ fetch_cos_linux_sources()
   echo "Fetching upstream kernel sources."
   mkdir -p ${BUILD_DIR}
   curl -s "https://storage.googleapis.com/cos-tools/${BUILD_ID}/kernel-src.tar.gz" | tar -xzf - -C ${BUILD_DIR}
+}
+
+fetch_generic_linux_sources()
+{
+  kernel_version=$(uname -r | tr -d '+')
+  major_version=$(echo ${kernel_version} | cut -d . -f 1)
+  echo "Fetching upstream kernel sources for ${kernel_version}."
+  mkdir -p ${BUILD_DIR}
+  curl -sL https://www.kernel.org/pub/linux/kernel/v${major_version}.x/linux-$kernel_version.tar.gz | tar --strip-components=1 -xzf - -C ${BUILD_DIR}
+
 }
 
 install_cos_linux_headers()
@@ -31,12 +44,26 @@ install_cos_linux_headers()
     SOURCES_DIR="${TARGET_DIR}/linux-lakitu-${BUILD_ID}"
 
     if [ ! -e "${SOURCES_DIR}/.installed" ];then
-      echo "Installing kernel headers for for COS build ${BUILD_ID}"
-      fetch_cos_linux_sources
-      generate_headers
-      mv ${BUILD_DIR} ${TARGET_DIR}
+      echo "Installing kernel headers for COS build ${BUILD_ID}"
+      time fetch_cos_linux_sources
+      time generate_headers
+      time mv ${BUILD_DIR} ${TARGET_DIR}
       touch "${SOURCES_DIR}/.installed"
     fi
+  fi
+}
+
+install_generic_linux_headers()
+{
+  BUILD_DIR="/linux-generic-$(uname -r)"
+  SOURCES_DIR="${TARGET_DIR}/linux-generic-$(uname -r)"
+
+  if [ ! -e "${SOURCES_DIR}/.installed" ];then
+    echo "Installing kernel headers for generic kernel"
+    time fetch_generic_linux_sources
+    time generate_headers
+    time mv ${BUILD_DIR} ${TARGET_DIR}
+    touch "${SOURCES_DIR}/.installed"
   fi
 }
 
@@ -50,7 +77,10 @@ install_headers()
       HEADERS_TARGET=${SOURCES_DIR}
       ;;
     *)
-      echo "WARNING: ${distro} is not a supported distro, cannot install headers, ensure they are installed to /lib/modules"
+      echo "WARNING: Cannot find distro-specific headers for ${distro}. Fetching generic headers."
+      install_generic_linux_headers
+      HEADERS_TARGET=${SOURCES_DIR}
+      ;;
   esac
 }
 
