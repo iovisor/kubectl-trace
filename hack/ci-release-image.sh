@@ -13,7 +13,7 @@ if [[ ! -z "$TRAVIS_PULL_REQUEST_BRANCH" ]]; then
 fi
 
 if [[ ! -z "$QUAY_TOKEN" ]]; then
-  $docker login -u="fntlnz+travisci" -p="$QUAY_TOKEN" quay.io
+  $docker login -u="iovisor+kubectltracetravisci" -p="$QUAY_TOKEN" quay.io
   $make $makeopts image/push
 fi
 
