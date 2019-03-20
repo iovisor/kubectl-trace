@@ -18,60 +18,67 @@ package config
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"sigs.k8s.io/kind/pkg/container/cri"
 	"sigs.k8s.io/kind/pkg/kustomize"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// Config contains cluster creation config
-// This is the current internal config type used by cluster
-// Other API versions can be converted to this struct with Convert()
-type Config struct {
+// Cluster contains kind cluster configuration
+type Cluster struct {
+	// TypeMeta representing the type of the object and its API schema version.
 	metav1.TypeMeta
 
-	// Image is the node image to use when running the cluster
-	// TODO(bentheelder): split this into image and tag?
-	Image string
+	// Nodes contains the list of nodes defined in the `kind` Cluster
+	// If unset this will default to a single control-plane node
+	// Note that if more than one control plane is specified, an external
+	// control plane load balancer will be provisioned implicitly
+	Nodes []Node
+
+	/* Advanced fields */
+
 	// KubeadmConfigPatches are applied to the generated kubeadm config as
 	// strategic merge patches to `kustomize build` internally
 	// https://github.com/kubernetes/community/blob/master/contributors/devel/strategic-merge-patch.md
 	// This should be an inline yaml blob-string
 	KubeadmConfigPatches []string
+
 	// KubeadmConfigPatchesJSON6902 are applied to the generated kubeadm config
 	// as patchesJson6902 to `kustomize build`
 	KubeadmConfigPatchesJSON6902 []kustomize.PatchJSON6902
-	// ControlPlane holds config for the control plane node
-	ControlPlane *ControlPlane
 }
 
-// ControlPlane holds configurations specific to the control plane nodes
-// (currently the only node).
-type ControlPlane struct {
-	// NodeLifecycle contains LifecycleHooks for phases of node provisioning
-	NodeLifecycle *NodeLifecycle
+// Node contains settings for a node in the `kind` Cluster.
+// A node in kind config represent a container that will be provisioned with all the components
+// required for the assigned role in the Kubernetes cluster
+type Node struct {
+	// Role defines the role of the node in the in the Kubernetes cluster
+	// created by kind
+	//
+	// Defaults to "control-plane"
+	Role NodeRole
+
+	// Image is the node image to use when creating this node
+	// If unset a default image will be used, see defaults.Image
+	Image string
+
+	/* Advanced fields */
+
+	// ExtraMounts describes additional mount points for the node container
+	// These may be used to bind a hostPath
+	ExtraMounts []cri.Mount
 }
 
-// NodeLifecycle contains LifecycleHooks for phases of node provisioning
-// Within each phase these hooks run in the order specified
-type NodeLifecycle struct {
-	// PreBoot hooks run before starting systemd
-	PreBoot []LifecycleHook
-	// PreKubeadm hooks run immediately before `kubeadm`
-	PreKubeadm []LifecycleHook
-	// PostKubeadm hooks run immediately after `kubeadm`
-	PostKubeadm []LifecycleHook
-	// PostSetup hooks run after any standard `kind` setup on the node
-	PostSetup []LifecycleHook
-}
+// NodeRole defines possible role for nodes in a Kubernetes cluster managed by `kind`
+type NodeRole string
 
-// LifecycleHook represents a command to run at points in the node lifecycle
-type LifecycleHook struct {
-	// Name is used to improve logging (optional)
-	Name string
-	// Command is the command to run on the node
-	Command []string
-	// MustSucceed - if true then the hook / command failing will cause
-	// cluster creation to fail, otherwise the error will just be logged and
-	// the boot process will continue
-	MustSucceed bool
-}
+const (
+	// ControlPlaneRole identifies a node that hosts a Kubernetes control-plane.
+	// NOTE: in single node clusters, control-plane nodes act also as a worker
+	// nodes, in which case the taint will be removed. see:
+	// https://kubernetes.io/docs/setup/independent/create-cluster-kubeadm/#control-plane-node-isolation
+	ControlPlaneRole NodeRole = "control-plane"
+	// WorkerRole identifies a node that hosts a Kubernetes worker
+	WorkerRole NodeRole = "worker"
+)

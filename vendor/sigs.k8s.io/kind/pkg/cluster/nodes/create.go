@@ -21,13 +21,18 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	"sigs.k8s.io/kind/pkg/docker"
+	"sigs.k8s.io/kind/pkg/cluster/constants"
+	"sigs.k8s.io/kind/pkg/cluster/internal/haproxy"
+	"sigs.k8s.io/kind/pkg/cluster/internal/kubeadm"
+	"sigs.k8s.io/kind/pkg/container/cri"
+	"sigs.k8s.io/kind/pkg/container/docker"
 )
 
-// FromID creates a node handle from the node (container's) ID
-func FromID(id string) *Node {
+// FromName creates a node handle from the node' Name
+func FromName(name string) *Node {
 	return &Node{
-		nameOrID: id,
+		name:  name,
+		cache: &nodeCache{},
 	}
 }
 
@@ -42,14 +47,74 @@ func getPort() (int, error) {
 	return port, nil
 }
 
-// CreateControlPlaneNode `docker run`s the node image, note that due to
+// CreateControlPlaneNode creates a contol-plane node
+// and gets ready for exposing the the API server
+func CreateControlPlaneNode(name, image, clusterLabel string, mounts []cri.Mount) (node *Node, err error) {
+	// gets a random host port for the API server
+	port, err := getPort()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get port for API server")
+	}
+
+	node, err = createNode(
+		name, image, clusterLabel, constants.ControlPlaneNodeRoleValue, mounts,
+		// publish selected port for the API server
+		"--expose", fmt.Sprintf("%d", port),
+		"-p", fmt.Sprintf("%d:%d", port, kubeadm.APIServerPort),
+	)
+	if err != nil {
+		return node, err
+	}
+
+	// stores the port mapping into the node internal state
+	node.cache.set(func(cache *nodeCache) {
+		cache.ports = map[int]int{kubeadm.APIServerPort: port}
+	})
+
+	return node, nil
+}
+
+// CreateExternalLoadBalancerNode creates an external loab balancer node
+// and gets ready for exposing the the API server and the load balancer admin console
+func CreateExternalLoadBalancerNode(name, image, clusterLabel string) (node *Node, err error) {
+	// gets a random host port for control-plane load balancer
+	port, err := getPort()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get port for control-plane load balancer")
+	}
+
+	node, err = createNode(name, image, clusterLabel, constants.ExternalLoadBalancerNodeRoleValue,
+		nil,
+		// publish selected port for the control plane
+		"--expose", fmt.Sprintf("%d", port),
+		"-p", fmt.Sprintf("%d:%d", port, haproxy.ControlPlanePort),
+	)
+	if err != nil {
+		return node, err
+	}
+
+	// stores the port mapping into the node internal state
+	node.cache.set(func(cache *nodeCache) {
+		cache.ports = map[int]int{haproxy.ControlPlanePort: port}
+	})
+
+	return node, nil
+}
+
+// CreateWorkerNode creates a worker node
+func CreateWorkerNode(name, image, clusterLabel string, mounts []cri.Mount) (node *Node, err error) {
+	node, err = createNode(name, image, clusterLabel, constants.WorkerNodeRoleValue, mounts)
+	if err != nil {
+		return node, err
+	}
+	return node, nil
+}
+
+// TODO(bentheelder): refactor this to not have extraArgs
+// createNode `docker run`s the node image, note that due to
 // images/node/entrypoint being the entrypoint, this container will
 // effectively be paused until we call actuallyStartNode(...)
-func CreateControlPlaneNode(name, image, clusterLabel string) (handle *Node, port int, err error) {
-	port, err = getPort()
-	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to get port for API server")
-	}
+func createNode(name, image, clusterLabel, role string, mounts []cri.Mount, extraArgs ...string) (handle *Node, err error) {
 	runArgs := []string{
 		"-d", // run the container detached
 		// running containers in a container requires privileged
@@ -67,12 +132,22 @@ func CreateControlPlaneNode(name, image, clusterLabel string) (handle *Node, por
 		"--name", name, // ... and set the container name
 		// label the node with the cluster ID
 		"--label", clusterLabel,
-		// publish selected port for the API server
-		"--expose", fmt.Sprintf("%d", port),
-		"-p", fmt.Sprintf("%d:%d", port, port),
+		// label the node with the role ID
+		"--label", fmt.Sprintf("%s=%s", constants.NodeRoleKey, role),
 		// explicitly set the entrypoint
 		"--entrypoint=/usr/local/bin/entrypoint",
 	}
+
+	// pass proxy environment variables to be used by node's docker deamon
+	if NeedProxy() {
+		proxyDetails := getProxyDetails()
+		for key, val := range proxyDetails.Envs {
+			runArgs = append(runArgs, "-e", fmt.Sprintf("%s=%s", key, val))
+		}
+	}
+
+	// adds node specific args
+	runArgs = append(runArgs, extraArgs...)
 
 	if docker.UsernsRemap() {
 		// We need this argument in order to make this command work
@@ -82,22 +157,34 @@ func CreateControlPlaneNode(name, image, clusterLabel string) (handle *Node, por
 
 	id, err := docker.Run(
 		image,
-		runArgs,
-		[]string{
+		docker.WithRunArgs(runArgs...),
+		docker.WithContainerArgs(
 			// explicitly pass the entrypoint argument
 			"/sbin/init",
-		},
+		),
+		docker.WithMounts(mounts),
 	)
+
 	// if there is a returned ID then we did create a container
 	// we should return a handle so the caller can clean it up
 	// we'll return a handle with the nice name though
 	if id != "" {
-		handle = &Node{
-			nameOrID: name,
-		}
+		handle = FromName(name)
 	}
 	if err != nil {
-		return handle, 0, errors.Wrap(err, "docker run error")
+		return handle, errors.Wrap(err, "docker run error")
 	}
-	return handle, port, nil
+
+	// Deletes the machine-id embedded in the node image and regenerate a new one.
+	// This is necessary because both kubelet and other components like weave net
+	// use machine-id internally to distinguish nodes.
+	if err := handle.Command("rm", "-f", "/etc/machine-id").Run(); err != nil {
+		return handle, errors.Wrap(err, "machine-id-setup error")
+	}
+
+	if err := handle.Command("systemd-machine-id-setup").Run(); err != nil {
+		return handle, errors.Wrap(err, "machine-id-setup error")
+	}
+
+	return handle, nil
 }
