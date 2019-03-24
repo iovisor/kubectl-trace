@@ -8,5 +8,6 @@ if [[ ! -z "$TRAVIS_PULL_REQUEST_BRANCH" ]]; then
   makeopts="-e GIT_BRANCH=$TRAVIS_PULL_REQUEST_BRANCH"
 fi
 
+$make $makeopts bpftraceimage/build # HACK since the ubuntu image isn't pushed yet
 $make $makeopts image/build
 $make $makeopts image/build-init

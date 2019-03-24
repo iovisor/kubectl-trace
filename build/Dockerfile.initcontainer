@@ -10,6 +10,6 @@ RUN apk add --update \
 
 WORKDIR /
 
-COPY /fetch-linux-headers.sh /
+COPY /init/fetch-linux-headers.sh /
 
 ENTRYPOINT [ "/fetch-linux-headers.sh" ]
