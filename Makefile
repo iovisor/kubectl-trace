@@ -39,8 +39,6 @@ ${trace_runner}:
 clean:
 	rm -Rf _output
 
-<<<<<<< HEAD
-=======
 .PHONY: image/build-alpine
 image/build-alpine:
 	$(DOCKER) build \

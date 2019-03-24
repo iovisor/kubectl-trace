@@ -34,10 +34,7 @@ RUN cd /bcc && mkdir build && cd build && cmake .. && make install -j4 && \
   cp src/cc/libbcc-loader-static.a /usr/local/lib64/libbcc-loader-static.a && \
   cp src/cc/libbpf.a /usr/local/lib64/libbpf.a
 
-ADD https://github.com/iovisor/bpftrace/archive/${bpftracesha}.tar.gz /bpftrace.tar.gz
-RUN tar -xvf /bpftrace.tar.gz
-
-RUN mv bpftrace-${bpftracesha} /bpftrace
+RUN git clone https://github.com/iovisor/bpftrace /bpftrace && cd /bpftrace && git checkout ${bpftracesha}
 
 WORKDIR /bpftrace
 
