@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package kustomize contains helpers for working with embeded kustomize commands
+// Package kustomize contains helpers for working with embedded kustomize commands
 package kustomize
 
 import (
@@ -37,6 +37,8 @@ type PatchJSON6902 struct {
 	Version string `json:"version"`
 	Kind    string `json:"kind"`
 	// Name and Namespace are optional
+	// NOTE: technically name is required now, but we default it elsewhere
+	// Third party users of this type / library would need to set it.
 	Name      string `json:"name,omitempty"`
 	Namespace string `json:"namespace,omitempty"`
 	// Patch should contain the contents of the json patch as a string
@@ -57,7 +59,7 @@ func Build(resources, patches []string, patchesJSON6902 []PatchJSON6902) (string
 	// which will add a drive letter if there is none. which drive letter is
 	// unimportant as the path is on the fake filesystem anyhow
 	if runtime.GOOS == "windows" {
-		fakeDir = `C:\\`
+		fakeDir = `C:\`
 	}
 
 	// NOTE: we always write this header as you cannot build without any resources

@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/cli-runtime/pkg/kustomize/k8sdeps/configmapandsecret"
-	"sigs.k8s.io/kustomize/pkg/fs"
 	"sigs.k8s.io/kustomize/pkg/ifc"
 	"sigs.k8s.io/kustomize/pkg/types"
 )
@@ -53,6 +52,9 @@ func (kf *KunstructuredFactoryImpl) SliceFromBytes(
 		var out unstructured.Unstructured
 		err = decoder.Decode(&out)
 		if err == nil {
+			if len(out.Object) == 0 {
+				continue
+			}
 			err = kf.validate(out)
 			if err != nil {
 				return nil, err
@@ -94,19 +96,23 @@ func (kf *KunstructuredFactoryImpl) MakeSecret(args *types.SecretArgs, options *
 	return NewKunstructuredFromObject(sec)
 }
 
-// Set sets loader, filesystem and workdirectory
-func (kf *KunstructuredFactoryImpl) Set(fs fs.FileSystem, ldr ifc.Loader) {
-	kf.cmFactory = configmapandsecret.NewConfigMapFactory(fs, ldr)
-	kf.secretFactory = configmapandsecret.NewSecretFactory(fs, ldr.Root())
+// Set sets loader
+func (kf *KunstructuredFactoryImpl) Set(ldr ifc.Loader) {
+	kf.cmFactory = configmapandsecret.NewConfigMapFactory(ldr)
+	kf.secretFactory = configmapandsecret.NewSecretFactory(ldr)
 }
 
 // validate validates that u has kind and name
+// except for kind `List`, which doesn't require a name
 func (kf *KunstructuredFactoryImpl) validate(u unstructured.Unstructured) error {
-	if u.GetName() == "" {
-		return fmt.Errorf("Missing metadata.name in object %v", u)
+	kind := u.GetKind()
+	if kind == "" {
+		return fmt.Errorf("missing kind in object %v", u)
+	} else if strings.HasSuffix(kind, "List") {
+		return nil
 	}
-	if u.GetKind() == "" {
-		return fmt.Errorf("Missing kind in object %v", u)
+	if u.GetName() == "" {
+		return fmt.Errorf("missing metadata.name in object %v", u)
 	}
 	return nil
 }

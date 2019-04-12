@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"sigs.k8s.io/kind/pkg/cluster/consts"
+	"sigs.k8s.io/kind/pkg/cluster/constants"
 
 	"sigs.k8s.io/kind/pkg/exec"
 )
@@ -34,7 +34,7 @@ func Delete(nodes ...Node) error {
 	}
 	ids := []string{}
 	for _, node := range nodes {
-		ids = append(ids, node.nameOrID)
+		ids = append(ids, node.name)
 	}
 	cmd := exec.Command(
 		"docker",
@@ -77,9 +77,9 @@ func list(visit func(string, *Node), filters ...string) error {
 		"-a",         // show stopped nodes
 		"--no-trunc", // don't truncate
 		// filter for nodes with the cluster label
-		"--filter", "label=" + consts.ClusterLabelKey,
+		"--filter", "label=" + constants.ClusterLabelKey,
 		// format to include friendly name and the cluster name
-		"--format", fmt.Sprintf(`{{.Names}}\t{{.Label "%s"}}`, consts.ClusterLabelKey),
+		"--format", fmt.Sprintf(`{{.Names}}\t{{.Label "%s"}}`, constants.ClusterLabelKey),
 	}
 	for _, filter := range filters {
 		args = append(args, "--filter", filter)
@@ -92,11 +92,11 @@ func list(visit func(string, *Node), filters ...string) error {
 	for _, line := range lines {
 		parts := strings.Split(line, "\t")
 		if len(parts) != 2 {
-			return fmt.Errorf("invalid output when listing nodes: %s", line)
+			return errors.Errorf("invalid output when listing nodes: %s", line)
 		}
 		names := strings.Split(parts[0], ",")
 		cluster := parts[1]
-		visit(cluster, FromID(names[0]))
+		visit(cluster, FromName(names[0]))
 	}
 	return nil
 }

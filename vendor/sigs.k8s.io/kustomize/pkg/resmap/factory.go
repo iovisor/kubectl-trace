@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"sigs.k8s.io/kustomize/pkg/fs"
 	"sigs.k8s.io/kustomize/pkg/ifc"
 	internal "sigs.k8s.io/kustomize/pkg/internal/error"
 	"sigs.k8s.io/kustomize/pkg/resource"
@@ -51,17 +50,17 @@ func (rmF *Factory) FromFiles(
 		if err != nil {
 			return nil, errors.Wrap(err, "Load from path "+path+" failed")
 		}
-		res, err := rmF.newResMapFromBytes(content)
+		res, err := rmF.NewResMapFromBytes(content)
 		if err != nil {
 			return nil, internal.Handler(err, path)
 		}
 		result = append(result, res)
 	}
-	return MergeWithoutOverride(result...)
+	return MergeWithErrorOnIdCollision(result...)
 }
 
 // newResMapFromBytes decodes a list of objects in byte array format.
-func (rmF *Factory) newResMapFromBytes(b []byte) (ResMap, error) {
+func (rmF *Factory) NewResMapFromBytes(b []byte) (ResMap, error) {
 	resources, err := rmF.resF.SliceFromBytes(b)
 	if err != nil {
 		return nil, err
@@ -106,9 +105,9 @@ func (rmF *Factory) NewResMapFromSecretArgs(argsList []types.SecretArgs, options
 	return newResMapFromResourceSlice(resources)
 }
 
-// Set sets the filesystem and loader for the underlying factory
-func (rmF *Factory) Set(fs fs.FileSystem, ldr ifc.Loader) {
-	rmF.resF.Set(fs, ldr)
+// Set sets the loader for the underlying factory
+func (rmF *Factory) Set(ldr ifc.Loader) {
+	rmF.resF.Set(ldr)
 }
 
 func newResMapFromResourceSlice(resources []*resource.Resource) (ResMap, error) {
