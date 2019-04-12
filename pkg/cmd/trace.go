@@ -36,7 +36,7 @@ type TraceOptions struct {
 // NewTraceOptions provides an instance of TraceOptions with default values.
 func NewTraceOptions(streams genericclioptions.IOStreams) *TraceOptions {
 	return &TraceOptions{
-		configFlags: genericclioptions.NewConfigFlags(),
+		configFlags: genericclioptions.NewConfigFlags(false),
 
 		IOStreams: streams,
 	}
