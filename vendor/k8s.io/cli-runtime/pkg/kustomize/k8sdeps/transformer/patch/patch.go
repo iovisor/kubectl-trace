@@ -60,9 +60,9 @@ func (pt *patchTransformer) Transform(baseResourceMap resmap.ResMap) error {
 	for _, patch := range patches {
 		// Merge patches with base resource.
 		id := patch.Id()
-		matchedIds := baseResourceMap.FindByGVKN(id)
+		matchedIds := baseResourceMap.GetMatchingIds(id.GvknEquals)
 		if len(matchedIds) == 0 {
-			return fmt.Errorf("failed to find an object with %#v to apply the patch", id.Gvk())
+			return fmt.Errorf("failed to find an object with %s to apply the patch", id.GvknString())
 		}
 		if len(matchedIds) > 1 {
 			return fmt.Errorf("found multiple objects %#v targeted by patch %#v (ambiguous)", matchedIds, id)

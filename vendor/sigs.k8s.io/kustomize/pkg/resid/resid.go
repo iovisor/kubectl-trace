@@ -22,20 +22,36 @@ import (
 	"sigs.k8s.io/kustomize/pkg/gvk"
 )
 
-// ResId conflates GroupVersionKind with a textual name to uniquely identify a kubernetes resource (object).
+// ResId is an immutable identifier of a k8s resource object.
 type ResId struct {
 	// Gvk of the resource.
 	gvKind gvk.Gvk
-	// original name of the resource before transformation.
+
+	// name of the resource before transformation.
 	name string
-	// namePrefix of the resource
-	// an untransformed resource has no prefix, fully transformed resource has an arbitrary number of prefixes
-	// concatenated together.
+
+	// namePrefix of the resource.
+	// An untransformed resource has no prefix.
+	// A fully transformed resource has an arbitrary
+	// number of prefixes concatenated together.
 	prefix string
-	// namespace the resource belongs to
-	// an untransformed resource has no namespace, fully transformed resource has the namespace from
-	// the top most overlay
+
+	// nameSuffix of the resource.
+	// An untransformed resource has no suffix.
+	// A fully transformed resource has an arbitrary
+	// number of suffixes concatenated together.
+	suffix string
+
+	// Namespace the resource belongs to.
+	// An untransformed resource has no namespace.
+	// A fully transformed resource has the namespace
+	// from the top most overlay.
 	namespace string
+}
+
+// NewResIdWithPrefixSuffixNamespace creates new resource identifier with a prefix, suffix and a namespace
+func NewResIdWithPrefixSuffixNamespace(k gvk.Gvk, n, p, s, ns string) ResId {
+	return ResId{gvKind: k, name: n, prefix: p, suffix: s, namespace: ns}
 }
 
 // NewResIdWithPrefixNamespace creates new resource identifier with a prefix and a namespace
@@ -43,9 +59,14 @@ func NewResIdWithPrefixNamespace(k gvk.Gvk, n, p, ns string) ResId {
 	return ResId{gvKind: k, name: n, prefix: p, namespace: ns}
 }
 
-// NewResIdWithPrefix creates new resource identifier with a prefix
-func NewResIdWithPrefix(k gvk.Gvk, n, p string) ResId {
-	return ResId{gvKind: k, name: n, prefix: p}
+// NewResIdWithSuffixNamespace creates new resource identifier with a suffix and a namespace
+func NewResIdWithSuffixNamespace(k gvk.Gvk, n, s, ns string) ResId {
+	return ResId{gvKind: k, name: n, suffix: s, namespace: ns}
+}
+
+// NewResIdWithPrefixSuffix creates new resource identifier with a prefix and suffix
+func NewResIdWithPrefixSuffix(k gvk.Gvk, n, p, s string) ResId {
+	return ResId{gvKind: k, name: n, prefix: p, suffix: s}
 }
 
 // NewResId creates new resource identifier
@@ -59,9 +80,10 @@ func NewResIdKindOnly(k string, n string) ResId {
 }
 
 const (
-	noNamespace = "noNamespace"
-	noPrefix    = "noPrefix"
-	noName      = "noName"
+	noNamespace = "~X"
+	noPrefix    = "~P"
+	noName      = "~N"
+	noSuffix    = "~S"
 	separator   = "|"
 )
 
@@ -79,9 +101,13 @@ func (n ResId) String() string {
 	if nm == "" {
 		nm = noName
 	}
+	s := n.suffix
+	if s == "" {
+		s = noSuffix
+	}
 
 	return strings.Join(
-		[]string{n.gvKind.String(), ns, p, nm}, separator)
+		[]string{n.gvKind.String(), ns, p, nm, s}, separator)
 }
 
 // GvknString of ResId based on GVK and name
@@ -89,10 +115,16 @@ func (n ResId) GvknString() string {
 	return n.gvKind.String() + separator + n.name
 }
 
-// GvknEquals return if two ResId have the same Group/Version/Kind and name
-// The comparison excludes prefix
+// GvknEquals returns true if the other id matches
+// Group/Version/Kind/name.
 func (n ResId) GvknEquals(id ResId) bool {
-	return n.gvKind.Equals(id.gvKind) && n.name == id.name
+	return n.name == id.name && n.gvKind.Equals(id.gvKind)
+}
+
+// NsGvknEquals returns true if the other id matches
+// namespace/Group/Version/Kind/name.
+func (n ResId) NsGvknEquals(id ResId) bool {
+	return n.namespace == id.namespace && n.GvknEquals(id)
 }
 
 // Gvk returns Group/Version/Kind of the resource.
@@ -105,24 +137,29 @@ func (n ResId) Name() string {
 	return n.name
 }
 
-// Prefix returns name prefix.
-func (n ResId) Prefix() string {
-	return n.prefix
-}
-
 // Namespace returns resource namespace.
 func (n ResId) Namespace() string {
 	return n.namespace
 }
 
-// CopyWithNewPrefix make a new copy from current ResId and append a new prefix
-func (n ResId) CopyWithNewPrefix(p string) ResId {
-	return ResId{gvKind: n.gvKind, name: n.name, prefix: n.concatPrefix(p), namespace: n.namespace}
+// CopyWithNewPrefixSuffix make a new copy from current ResId
+// and append a new prefix and suffix
+func (n ResId) CopyWithNewPrefixSuffix(p, s string) ResId {
+	result := n
+	if p != "" {
+		result.prefix = n.concatPrefix(p)
+	}
+	if s != "" {
+		result.suffix = n.concatSuffix(s)
+	}
+	return result
 }
 
 // CopyWithNewNamespace make a new copy from current ResId and set a new namespace
 func (n ResId) CopyWithNewNamespace(ns string) ResId {
-	return ResId{gvKind: n.gvKind, name: n.name, prefix: n.prefix, namespace: ns}
+	result := n
+	result.namespace = ns
+	return result
 }
 
 // HasSameLeftmostPrefix check if two ResIds have the same
@@ -131,6 +168,14 @@ func (n ResId) HasSameLeftmostPrefix(id ResId) bool {
 	prefixes1 := n.prefixList()
 	prefixes2 := id.prefixList()
 	return prefixes1[0] == prefixes2[0]
+}
+
+// HasSameRightmostSuffix check if two ResIds have the same
+// right most suffix.
+func (n ResId) HasSameRightmostSuffix(id ResId) bool {
+	suffixes1 := n.suffixList()
+	suffixes2 := id.suffixList()
+	return suffixes1[len(suffixes1)-1] == suffixes2[len(suffixes2)-1]
 }
 
 func (n ResId) concatPrefix(p string) string {
@@ -143,6 +188,20 @@ func (n ResId) concatPrefix(p string) string {
 	return p + ":" + n.prefix
 }
 
+func (n ResId) concatSuffix(s string) string {
+	if s == "" {
+		return n.suffix
+	}
+	if n.suffix == "" {
+		return s
+	}
+	return n.suffix + ":" + s
+}
+
 func (n ResId) prefixList() []string {
 	return strings.Split(n.prefix, ":")
+}
+
+func (n ResId) suffixList() []string {
+	return strings.Split(n.suffix, ":")
 }

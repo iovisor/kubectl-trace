@@ -13,11 +13,11 @@ import (
 	"gotest.tools/icmd"
 	"sigs.k8s.io/kind/pkg/cluster"
 	"sigs.k8s.io/kind/pkg/cluster/config/encoding"
+	"sigs.k8s.io/kind/pkg/cluster/create"
 )
 
 var (
 	KubectlTraceBinary = os.Getenv("TEST_KUBECTLTRACE_BINARY")
-	KindImageTag       = os.Getenv("TEST_KIND_IMAGETAG")
 )
 
 type KubectlTraceSuite struct {
@@ -30,18 +30,12 @@ func init() {
 		KubectlTraceBinary = "kubectl-trace"
 	}
 
-	if KindImageTag == "" {
-		KindImageTag = "kindest/node:v1.12.3"
-	}
 	check.Suite(&KubectlTraceSuite{})
 }
 
 func (k *KubectlTraceSuite) SetUpSuite(c *check.C) {
 	cfg, err := encoding.Load("")
 	c.Assert(err, check.IsNil)
-	retain := false
-	wait := time.Duration(0)
-
 	err = cfg.Validate()
 	c.Assert(err, check.IsNil)
 
@@ -49,7 +43,7 @@ func (k *KubectlTraceSuite) SetUpSuite(c *check.C) {
 	c.Assert(err, check.IsNil)
 	kctx := cluster.NewContext(clusterName)
 
-	err = kctx.Create(cfg, retain, wait)
+	err = kctx.Create(cfg, create.Retain(false), create.WaitForReady(time.Duration(0)))
 	c.Assert(err, check.IsNil)
 	k.kindContext = kctx
 
@@ -65,8 +59,8 @@ func (k *KubectlTraceSuite) SetUpSuite(c *check.C) {
 	}
 }
 
-func (s *KubectlTraceSuite) TearDownSuite(c *check.C) {
-	err := s.kindContext.Delete()
+func (k *KubectlTraceSuite) TearDownSuite(c *check.C) {
+	err := k.kindContext.Delete()
 	c.Assert(err, check.IsNil)
 }
 

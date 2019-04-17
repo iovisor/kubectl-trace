@@ -17,64 +17,64 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
+	"github.com/pkg/errors"
 
 	"sigs.k8s.io/kind/pkg/util"
 )
 
 // Validate returns a ConfigErrors with an entry for each problem
 // with the config, or nil if there are none
-func (c *Config) Validate() error {
+func (c *Cluster) Validate() error {
 	errs := []error{}
-	if c.Image == "" {
-		errs = append(errs, fmt.Errorf("image is a required field"))
-	}
-	if c.ControlPlane != nil {
-		if c.ControlPlane.NodeLifecycle != nil {
-			for _, hook := range c.ControlPlane.NodeLifecycle.PreBoot {
-				if len(hook.Command) == 0 {
-					errs = append(errs, fmt.Errorf(
-						"preBoot hooks must set command to a non-empty value",
-					))
-					// we don't need to repeat this error and we don't
-					// have any others for this field
-					break
-				}
-			}
-			for _, hook := range c.ControlPlane.NodeLifecycle.PreKubeadm {
-				if len(hook.Command) == 0 {
-					errs = append(errs, fmt.Errorf(
-						"preKubeadm hooks must set command to a non-empty value",
-					))
-					// we don't need to repeat this error and we don't
-					// have any others for this field
-					break
-				}
-			}
-			for _, hook := range c.ControlPlane.NodeLifecycle.PostKubeadm {
-				if len(hook.Command) == 0 {
-					errs = append(errs, fmt.Errorf(
-						"postKubeadm hooks must set command to a non-empty value",
-					))
-					// we don't need to repeat this error and we don't
-					// have any others for this field
-					break
-				}
-			}
-			for _, hook := range c.ControlPlane.NodeLifecycle.PostSetup {
-				if len(hook.Command) == 0 {
-					errs = append(errs, fmt.Errorf(
-						"postKubeadm hooks must set command to a non-empty value",
-					))
-					// we don't need to repeat this error and we don't
-					// have any others for this field
-					break
-				}
-			}
+
+	numByRole := make(map[NodeRole]int32)
+	// All nodes in the config should be valid
+	for i, n := range c.Nodes {
+		// validate the node
+		if err := n.Validate(); err != nil {
+			errs = append(errs, errors.Errorf("invalid configuration for node %d: %v", i, err))
+		}
+		// update role count
+		if num, ok := numByRole[n.Role]; ok {
+			numByRole[n.Role] = 1 + num
+		} else {
+			numByRole[n.Role] = 1
 		}
 	}
+
+	// there must be at least one control plane node
+	numControlPlane, anyControlPlane := numByRole[ControlPlaneRole]
+	if !anyControlPlane || numControlPlane < 1 {
+		errs = append(errs, errors.Errorf("must have at least one %s node", string(ControlPlaneRole)))
+	}
+
 	if len(errs) > 0 {
 		return util.NewErrors(errs)
 	}
+	return nil
+}
+
+// Validate returns a ConfigErrors with an entry for each problem
+// with the Node, or nil if there are none
+func (n *Node) Validate() error {
+	errs := []error{}
+
+	// validate node role should be one of the expected values
+	switch n.Role {
+	case ControlPlaneRole,
+		WorkerRole:
+	default:
+		errs = append(errs, errors.Errorf("%q is not a valid node role", n.Role))
+	}
+
+	// image should be defined
+	if n.Image == "" {
+		errs = append(errs, errors.New("image is a required field"))
+	}
+
+	if len(errs) > 0 {
+		return util.NewErrors(errs)
+	}
+
 	return nil
 }
