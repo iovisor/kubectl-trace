@@ -18,17 +18,19 @@ import (
 )
 
 var (
-	attachShort = `` // Wrap with i18n.T()
-	attachLong  = attachShort + `
-
-...`
+	attachShort = `Attach to an existing trace` // Wrap with i18n.T()
+	attachLong  = attachShort
 
 	attachExamples = `
-  # ...
-  %[1]s trace attach -h
+	# Attach to a trace using its name
+	%[1]s trace attach kubectl-trace-d5842929-0b78-11e9-a9fa-40a3cc632df1
 
-  # ...
-  %[1]s trace attach`
+	# Attach to a trace using its id
+	%[1]s trace attach 5594d7e1-0b78-11e9-b7f1-40a3cc632df1
+
+	# Attach to a trace in a namespace using its name
+	%[1]s trace attach kubectl-trace-d5842929-0b78-11e9-a9fa-40a3cc632df1 -n mynamespace
+`
 )
 
 // AttachOptions ...

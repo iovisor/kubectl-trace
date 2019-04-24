@@ -16,8 +16,7 @@ import (
 
 var (
 	deleteShort = `Delete a bpftrace program execution` // Wrap with i18n.T()
-	deleteLong  = `
-...`
+	deleteLong  = deleteShort
 
 	deleteExamples = `
   # Delete a specific bpftrace program by ID

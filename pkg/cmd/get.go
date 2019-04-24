@@ -10,9 +10,9 @@ import (
 	"github.com/iovisor/kubectl-trace/pkg/meta"
 	"github.com/iovisor/kubectl-trace/pkg/tracejob"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/duration"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
@@ -23,9 +23,7 @@ import (
 var (
 	getCommand = "get"
 	getShort   = `Get the running traces` // Wrap with i18n.T()
-	getLong    = getShort + `
-	
-...`
+	getLong    = getShort
 
 	getExamples = `
   # Get all traces in a namespace
