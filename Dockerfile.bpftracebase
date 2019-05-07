@@ -43,4 +43,4 @@ WORKDIR /bpftrace
 
 WORKDIR /bpftrace/docker
 
-RUN sh build.sh /bpftrace/build-release Release
+RUN sh build.sh /bpftrace/build-release Release bpftrace
