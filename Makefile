@@ -39,26 +39,6 @@ ${trace_runner}:
 clean:
 	rm -Rf _output
 
-.PHONY: image/build-alpine
-image/build-alpine:
-	$(DOCKER) build \
-		--build-arg bpftracesha=$(BPFTRACESHA) \
-		--build-arg imagenamebase="$(IMAGE_NAME_BASE_ALPINE)" \
-		$(IMAGE_BUILD_FLAGS) \
-		-t "$(IMAGE_TRACERUNNER_BRANCH_ALPINE)" \
-		-f build/Dockerfile.tracerunner-alpine .
-	$(DOCKER) tag "$(IMAGE_TRACERUNNER_BRANCH_ALPINE)" $(IMAGE_TRACERUNNER_COMMIT_ALPINE)
-
-.PHONY: image/build-ubuntu
-image/build-ubuntu:
-	$(DOCKER) build \
-		--build-arg bpftracesha=$(BPFTRACESHA) \
-		--build-arg imagenamebase="$(IMAGE_NAME_BASE_UBUNTU)" \
-		$(IMAGE_BUILD_FLAGS) \
-		-t "$(IMAGE_TRACERUNNER_BRANCH_UBUNTU)" \
-		-f build/Dockerfile.tracerunner-ubuntu .
-	$(DOCKER) tag $(IMAGE_TRACERUNNER_BRANCH_UBUNTU) $(IMAGE_TRACERUNNER_COMMIT_UBUNTU)
-
 .PHONY: image/build-init
 image/build-init:
 	$(DOCKER) build \
@@ -75,6 +55,7 @@ image/build:
 		-f build/Dockerfile.tracerunner .
 	$(DOCKER) tag $(IMAGE_TRACERUNNER_BRANCH) $(IMAGE_TRACERUNNER_COMMIT)
 	$(DOCKER) tag "$(IMAGE_TRACERUNNER_BRANCH)" $(IMAGE_TRACERUNNER_BRANCH)
+
 
 .PHONY: image/push
 image/push:
