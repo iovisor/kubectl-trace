@@ -8,11 +8,11 @@ GIT_COMMIT := $(if $(shell git status --porcelain --untracked-files=no),${COMMIT
 GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
 
-IMAGE_NAME_INIT        ?= quay.io/iovisor/kubectl-trace-init
-IMAGE_NAME             ?= quay.io/iovisor/kubectl-trace-bpftrace
+IMAGE_NAME_INIT ?= quay.io/iovisor/kubectl-trace-init
+IMAGE_NAME ?= quay.io/iovisor/kubectl-trace-bpftrace
 
-IMAGE_TRACERUNNER_BRANCH        := $(IMAGE_NAME):$(GIT_BRANCH_CLEAN)
-IMAGE_TRACERUNNER_COMMIT        := $(IMAGE_NAME):$(GIT_COMMIT)
+IMAGE_TRACERUNNER_BRANCH := $(IMAGE_NAME):$(GIT_BRANCH_CLEAN)
+IMAGE_TRACERUNNER_COMMIT := $(IMAGE_NAME):$(GIT_COMMIT)
 
 IMAGE_INITCONTAINER_BRANCH := $(IMAGE_NAME_INIT):$(GIT_BRANCH_CLEAN)
 IMAGE_INITCONTAINER_COMMIT := $(IMAGE_NAME_INIT):$(GIT_COMMIT)
