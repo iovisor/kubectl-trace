@@ -7,7 +7,7 @@ go:
 services:
 - docker
 before_install:
-  - GO111MODULE=on; go get github.com/goreleaser/goreleaser
+- curl -LO https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_amd64.deb && sudo dpkg -i goreleaser_amd64.deb 
 script:
 - make test
 - make _output/bin/kubectl-trace
@@ -16,3 +16,11 @@ script:
 - make cross
 after_success:
 - ./hack/ci-release-image.sh
+
+deploy:
+- provider: script
+  skip_cleanup: true
+  script: goreleaser
+  on:
+    tags: true
+    condition: $TRAVIS_OS_NAME = linux
