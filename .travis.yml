@@ -7,7 +7,7 @@ go:
 services:
 - docker
 before_install:
-  - go get github.com/goreleaser/goreleaser
+  - GO111MODULE=on; go get github.com/goreleaser/goreleaser
 script:
 - make test
 - make _output/bin/kubectl-trace
