@@ -1,4 +1,7 @@
 project_name: kubectl-trace
+before:
+  hooks:
+    - go mod tidy
 builds:
   - id: "kubectl-trace"
     goos:
