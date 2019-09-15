@@ -1,6 +1,6 @@
 # kubectl-trace Release Process
 
-Our release process is automated using goreleaser.
+Our release process is automated using [goreleaser](https://github.com/goreleaser/goreleaser).
 
 When we release we do the following process:
 
