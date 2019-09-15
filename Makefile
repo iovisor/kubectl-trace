@@ -37,9 +37,14 @@ ${kubectl_trace}:
 ${trace_runner}:
 	CGO_ENABLED=1 $(GO) build ${LDFLAGS} -o $@ ./cmd/trace-runner
 
+.PHONY: cross
+cross:
+	IMAGE_NAME=$(IMAGE_NAME) GO111MODULE=on goreleaser --snapshot --rm-dist
+
 .PHONY: clean
 clean:
-	rm -Rf _output
+	$(RM) -R _output
+	$(RM) -R dist
 
 .PHONY: image/build-init
 image/build-init:
