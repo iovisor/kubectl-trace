@@ -8,24 +8,59 @@ of [bpftrace](https://github.com/iovisor/bpftrace) programs in your Kubernetes c
 <!-- toc -->
 
 - [Installing](#installing)
-  * [Source](#source)
-  * [Packages](#packages)
-    + [Arch - AUR](#arch---aur)
+  - [Pre-built binaries](#pre-built-binaries)
+  - [Source](#source)
+  - [Packages](#packages)
+    - [Arch - AUR](#arch---aur)
 - [Architecture](#architecture)
 - [Usage](#usage)
-  * [Run a program from string literal](#run-a-program-from-string-literal)
-  * [Run a program from file](#run-a-program-from-file)
-  * [Run a program against a Pod](#run-a-program-against-a-pod)
-  * [Running against a Pod vs against a Node](#running-against-a-pod-vs-against-a-node)
-  * [Using a custom service account](#using-a-custom-service-account)
-  * [Executing in a cluster using Pod Security Policies](#executing-in-a-cluster-using-pod-security-policies)
-  * [More bpftrace programs](#more-bpftrace-programs)
+  - [Run a program from string literal](#run-a-program-from-string-literal)
+  - [Run a program from file](#run-a-program-from-file)
+  - [Run a program against a Pod](#run-a-program-against-a-pod)
+  - [Running against a Pod vs against a Node](#running-against-a-pod-vs-against-a-node)
+  - [Using a custom service account](#using-a-custom-service-account)
+  - [Executing in a cluster using Pod Security Policies](#executing-in-a-cluster-using-pod-security-policies)
+  - [More bpftrace programs](#more-bpftrace-programs)
 - [Status of the project](#status-of-the-project)
 - [Contributing](#contributing)
 
 <!-- tocstop -->
 
 ## Installing
+
+### Pre-built binaries
+
+See the [release](https://github.com/iovisor/kubectl-trace/releases) page for the full list of pre-built assets.
+
+The commands here show `amd64` versions, `386` versions are available in the releases page.
+
+**Linux**
+
+```bash
+curl -Lo https://github.com/iovisor/kubectl-trace/releases/download/v0.1.0-rc.0/kubectl-trace_0.1.0-rc.0_linux_amd64.tar.gz
+tar -xvf kubectl-trace.tar.gz
+mv kubectl-trace /usr/local/bin/kubectl-trace
+```
+
+**OSX**
+
+```bash
+curl -Lo https://github.com/iovisor/kubectl-trace/releases/download/v0.1.0-rc.0/kubectl-trace_0.1.0-rc.0_linux_amd64.tar.gz
+tar -xvf kubectl-trace.tar.gz
+mv kubectl-trace /usr/local/bin/kubectl-trace
+```
+
+
+**Windows**
+
+In PowerShell v5+
+```powershell
+$url = "https://github.com/iovisor/kubectl-trace/releases/download/v0.1.0-rc.0/kubectl-trace_0.1.0-rc.0_windows_amd64.zip"
+$output = "$PSScriptRoot\kubectl-trace.zip"
+
+Invoke-WebRequest -Uri $url -OutFile $output
+Expand-Archive "$PSScriptRoot\kubectl-trace.zip" -DestinationPath "$PSScriptRoot\kubectl-trace"
+```
 
 ### Source
 
@@ -52,13 +87,7 @@ yay -S kubectl-trace-git
 
 ## Architecture
 
-Since it is a kubectl plugin, kubectl-trace doesn't require you to install any component directly
-to your kubernetes cluster in order to execute your bpftrace programs, however when you point it to
-a cluster, it will schedule a temporary job there called `trace-runner` that executes the program.
-
-This figure, shows the general idea:
-
-![Kubectl trace architecture diagram](docs/img/kubectl-trace-architecture.png)
+See [architecture.md](/docs/architecture.md)
 
 ## Usage
 
