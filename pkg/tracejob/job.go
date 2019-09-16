@@ -35,6 +35,7 @@ type TraceJob struct {
 	ImageNameTag     string
 	InitImageNameTag string
 	FetchHeaders     bool
+	Deadline         int64
 	StartTime        metav1.Time
 	Status           TraceJobStatus
 }
@@ -217,6 +218,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 	job := &batchv1.Job{
 		ObjectMeta: commonMeta,
 		Spec: batchv1.JobSpec{
+			ActiveDeadlineSeconds:   int64Ptr(nj.Deadline),
 			TTLSecondsAfterFinished: int32Ptr(5),
 			Parallelism:             int32Ptr(1),
 			Completions:             int32Ptr(1),

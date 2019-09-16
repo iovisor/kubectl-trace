@@ -25,6 +25,8 @@ var (
 	ImageNameTag = "quay.io/iovisor/kubectl-trace-bpftrace:latest"
 	// InitImageNameTag represents the default init container image
 	InitImageNameTag = "quay.io/iovisor/kubectl-trace-init:latest"
+	// By default do not allow traces to run for longer than one hour
+	DefaultDeadline = 3600
 )
 
 var (
@@ -73,6 +75,7 @@ type RunOptions struct {
 	imageName      string
 	initImageName  string
 	fetchHeaders   bool
+	deadline       int64
 
 	resourceArg string
 	attach      bool
@@ -91,6 +94,7 @@ func NewRunOptions(streams genericclioptions.IOStreams) *RunOptions {
 		serviceAccount: "default",
 		imageName:      ImageNameTag,
 		initImageName:  InitImageNameTag,
+		deadline:       int64(DefaultDeadline),
 	}
 }
 
@@ -127,6 +131,7 @@ func NewRunCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 	cmd.Flags().StringVar(&o.imageName, "imagename", o.imageName, "Custom image for the tracerunner")
 	cmd.Flags().StringVar(&o.initImageName, "init-imagename", o.initImageName, "Custom image for the init container responsible to fetch and prepare linux headers")
 	cmd.Flags().BoolVar(&o.fetchHeaders, "fetch-headers", o.fetchHeaders, "Whether to fetch linux headers or not")
+	cmd.Flags().Int64Var(&o.deadline, "deadline", o.deadline, "Maximum time to allow trace to run in seconds")
 
 	return cmd
 }
@@ -289,19 +294,19 @@ func (o *RunOptions) Run() error {
 	}
 
 	tj := tracejob.TraceJob{
-		Name:           fmt.Sprintf("%s%s", meta.ObjectNamePrefix, string(juid)),
-		Namespace:      o.namespace,
-		ServiceAccount: o.serviceAccount,
-		ID:             juid,
-		Hostname:       o.nodeName,
-		Program:        o.program,
-		PodUID:         o.podUID,
-		ContainerName:  o.container,
-		IsPod:          o.isPod,
-		// todo(dalehamel) > following fields to be used for #48
+		Name:             fmt.Sprintf("%s%s", meta.ObjectNamePrefix, string(juid)),
+		Namespace:        o.namespace,
+		ServiceAccount:   o.serviceAccount,
+		ID:               juid,
+		Hostname:         o.nodeName,
+		Program:          o.program,
+		PodUID:           o.podUID,
+		ContainerName:    o.container,
+		IsPod:            o.isPod,
 		ImageNameTag:     o.imageName,
 		InitImageNameTag: o.initImageName,
 		FetchHeaders:     o.fetchHeaders,
+		Deadline:         o.deadline,
 	}
 
 	job, err := tc.CreateJob(tj)
