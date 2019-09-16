@@ -25,7 +25,7 @@ var (
 	ImageNameTag = "quay.io/iovisor/kubectl-trace-bpftrace:latest"
 	// InitImageNameTag represents the default init container image
 	InitImageNameTag = "quay.io/iovisor/kubectl-trace-init:latest"
-	// By default do not allow traces to run for longer than one hour
+	// DefaultDeadline default do not allow traces to run for longer than one hour
 	DefaultDeadline = 3600
 )
 
