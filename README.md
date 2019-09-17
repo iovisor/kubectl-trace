@@ -45,7 +45,7 @@ mv kubectl-trace /usr/local/bin/kubectl-trace
 **OSX**
 
 ```bash
-curl -Lo https://github.com/iovisor/kubectl-trace/releases/download/v0.1.0-rc.0/kubectl-trace_0.1.0-rc.0_linux_amd64.tar.gz
+curl -L -o kubectl-trace.tar.gz https://github.com/iovisor/kubectl-trace/releases/download/v0.1.0-rc.0/kubectl-trace_0.1.0-rc.0_darwin_amd64.tar.gz
 tar -xvf kubectl-trace.tar.gz
 mv kubectl-trace /usr/local/bin/kubectl-trace
 ```
