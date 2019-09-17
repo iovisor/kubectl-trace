@@ -35,7 +35,7 @@ type TraceJob struct {
 	ImageNameTag     string
 	InitImageNameTag string
 	FetchHeaders     bool
-	StartTime        metav1.Time
+	StartTime        *metav1.Time
 	Status           TraceJobStatus
 }
 
@@ -131,7 +131,7 @@ func (t *TraceJobClient) GetJob(nf TraceJobFilter) ([]TraceJob, error) {
 			ID:        types.UID(id),
 			Namespace: j.Namespace,
 			Hostname:  hostname,
-			StartTime: *j.Status.StartTime,
+			StartTime: j.Status.StartTime,
 			Status:    jobStatus(j),
 		}
 		tjobs = append(tjobs, tj)

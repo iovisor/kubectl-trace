@@ -200,7 +200,7 @@ func jobsTablePrint(o io.Writer, jobs []tracejob.TraceJob) {
 
 // translateTimestampSince returns the elapsed time since timestamp in
 // human-readable approximation.
-func translateTimestampSince(timestamp metav1.Time) string {
+func translateTimestampSince(timestamp *metav1.Time) string {
 	if timestamp.IsZero() {
 		return "<unknown>"
 	}
