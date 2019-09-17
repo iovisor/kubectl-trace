@@ -23,21 +23,22 @@ type TraceJobClient struct {
 
 // TraceJob is a container of info needed to create the job responsible for tracing.
 type TraceJob struct {
-	Name             string
-	ID               types.UID
-	Namespace        string
-	ServiceAccount   string
-	Hostname         string
-	Program          string
-	PodUID           string
-	ContainerName    string
-	IsPod            bool
-	ImageNameTag     string
-	InitImageNameTag string
-	FetchHeaders     bool
-	Deadline         int64
-	StartTime        metav1.Time
-	Status           TraceJobStatus
+	Name                string
+	ID                  types.UID
+	Namespace           string
+	ServiceAccount      string
+	Hostname            string
+	Program             string
+	PodUID              string
+	ContainerName       string
+	IsPod               bool
+	ImageNameTag        string
+	InitImageNameTag    string
+	FetchHeaders        bool
+	Deadline            int64
+	DeadlineGracePeriod int64
+	StartTime           metav1.Time
+	Status              TraceJobStatus
 }
 
 // WithOutStream setup a file stream to output trace job operation information
@@ -306,7 +307,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 										Command: []string{
 											"/bin/bash",
 											"-c",
-											"kill -SIGINT $(pidof bpftrace) && sleep 10",
+											fmt.Sprintf("kill -SIGINT $(pidof bpftrace) && sleep %i", nj.DeadlineGracePeriod),
 										},
 									},
 								},
