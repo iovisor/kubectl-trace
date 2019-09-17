@@ -300,7 +300,6 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 							// We want to send SIGINT prior to the pod being killed, so we can print the map
 							// we will also wait for an arbitrary amount of time (10s) to give bpftrace time to
 							// process and summarize the data
-							// FIXME should this sleep be configurable? 10s is probably ample for most cases.
 							Lifecycle: &apiv1.Lifecycle{
 								PreStop: &apiv1.Handler{
 									Exec: &apiv1.ExecAction{
