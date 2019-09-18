@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strconv"
 
 	"github.com/iovisor/kubectl-trace/pkg/meta"
 	batchv1 "k8s.io/api/batch/v1"
@@ -23,20 +24,22 @@ type TraceJobClient struct {
 
 // TraceJob is a container of info needed to create the job responsible for tracing.
 type TraceJob struct {
-	Name             string
-	ID               types.UID
-	Namespace        string
-	ServiceAccount   string
-	Hostname         string
-	Program          string
-	PodUID           string
-	ContainerName    string
-	IsPod            bool
-	ImageNameTag     string
-	InitImageNameTag string
-	FetchHeaders     bool
-	StartTime        *metav1.Time
-	Status           TraceJobStatus
+	Name                string
+	ID                  types.UID
+	Namespace           string
+	ServiceAccount      string
+	Hostname            string
+	Program             string
+	PodUID              string
+	ContainerName       string
+	IsPod               bool
+	ImageNameTag        string
+	InitImageNameTag    string
+	FetchHeaders        bool
+	Deadline            int64
+	DeadlineGracePeriod int64
+	StartTime           *metav1.Time
+	Status              TraceJobStatus
 }
 
 // WithOutStream setup a file stream to output trace job operation information
@@ -184,6 +187,11 @@ func (t *TraceJobClient) DeleteJobs(nf TraceJobFilter) error {
 func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 
 	bpfTraceCmd := []string{
+		"/bin/timeout",
+		"--preserve-status",
+		"--signal",
+		"INT",
+		strconv.FormatInt(nj.Deadline, 10),
 		"/bin/trace-runner",
 		"--program=/programs/program.bt",
 	}
@@ -217,6 +225,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 	job := &batchv1.Job{
 		ObjectMeta: commonMeta,
 		Spec: batchv1.JobSpec{
+			ActiveDeadlineSeconds:   int64Ptr(nj.Deadline + nj.DeadlineGracePeriod),
 			TTLSecondsAfterFinished: int32Ptr(5),
 			Parallelism:             int32Ptr(1),
 			Completions:             int32Ptr(1),
@@ -293,6 +302,20 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 							},
 							SecurityContext: &apiv1.SecurityContext{
 								Privileged: boolPtr(true),
+							},
+							// We want to send SIGINT prior to the pod being killed, so we can print the map
+							// we will also wait for an arbitrary amount of time (10s) to give bpftrace time to
+							// process and summarize the data
+							Lifecycle: &apiv1.Lifecycle{
+								PreStop: &apiv1.Handler{
+									Exec: &apiv1.ExecAction{
+										Command: []string{
+											"/bin/bash",
+											"-c",
+											fmt.Sprintf("kill -SIGINT $(pidof bpftrace) && sleep %s", strconv.FormatInt(nj.DeadlineGracePeriod, 10)),
+										},
+									},
+								},
 							},
 						},
 					},

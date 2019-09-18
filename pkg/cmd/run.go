@@ -25,6 +25,11 @@ var (
 	ImageNameTag = "quay.io/iovisor/kubectl-trace-bpftrace:latest"
 	// InitImageNameTag represents the default init container image
 	InitImageNameTag = "quay.io/iovisor/kubectl-trace-init:latest"
+	// DefaultDeadline is the maximum time a tracejob is allowed to run, in seconds
+	DefaultDeadline = 3600
+	// DefaultDeadlineGracePeriod is the maximum time to wait to print a map or histogram, in seconds
+	// note that it must account for startup time, as the deadline as based on start time
+	DefaultDeadlineGracePeriod = 30
 )
 
 var (
@@ -66,13 +71,15 @@ type RunOptions struct {
 	explicitNamespace bool
 
 	// Flags local to this command
-	container      string
-	eval           string
-	program        string
-	serviceAccount string
-	imageName      string
-	initImageName  string
-	fetchHeaders   bool
+	container           string
+	eval                string
+	program             string
+	serviceAccount      string
+	imageName           string
+	initImageName       string
+	fetchHeaders        bool
+	deadline            int64
+	deadlineGracePeriod int64
 
 	resourceArg string
 	attach      bool
@@ -88,9 +95,11 @@ func NewRunOptions(streams genericclioptions.IOStreams) *RunOptions {
 	return &RunOptions{
 		IOStreams: streams,
 
-		serviceAccount: "default",
-		imageName:      ImageNameTag,
-		initImageName:  InitImageNameTag,
+		serviceAccount:      "default",
+		imageName:           ImageNameTag,
+		initImageName:       InitImageNameTag,
+		deadline:            int64(DefaultDeadline),
+		deadlineGracePeriod: int64(DefaultDeadlineGracePeriod),
 	}
 }
 
@@ -127,6 +136,8 @@ func NewRunCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 	cmd.Flags().StringVar(&o.imageName, "imagename", o.imageName, "Custom image for the tracerunner")
 	cmd.Flags().StringVar(&o.initImageName, "init-imagename", o.initImageName, "Custom image for the init container responsible to fetch and prepare linux headers")
 	cmd.Flags().BoolVar(&o.fetchHeaders, "fetch-headers", o.fetchHeaders, "Whether to fetch linux headers or not")
+	cmd.Flags().Int64Var(&o.deadline, "deadline", o.deadline, "Maximum time to allow trace to run in seconds")
+	cmd.Flags().Int64Var(&o.deadlineGracePeriod, "deadline-grace-period", o.deadlineGracePeriod, "Maximum wait time to print maps or histograms after deadline, in seconds")
 
 	return cmd
 }
@@ -289,19 +300,20 @@ func (o *RunOptions) Run() error {
 	}
 
 	tj := tracejob.TraceJob{
-		Name:           fmt.Sprintf("%s%s", meta.ObjectNamePrefix, string(juid)),
-		Namespace:      o.namespace,
-		ServiceAccount: o.serviceAccount,
-		ID:             juid,
-		Hostname:       o.nodeName,
-		Program:        o.program,
-		PodUID:         o.podUID,
-		ContainerName:  o.container,
-		IsPod:          o.isPod,
-		// todo(dalehamel) > following fields to be used for #48
-		ImageNameTag:     o.imageName,
-		InitImageNameTag: o.initImageName,
-		FetchHeaders:     o.fetchHeaders,
+		Name:                fmt.Sprintf("%s%s", meta.ObjectNamePrefix, string(juid)),
+		Namespace:           o.namespace,
+		ServiceAccount:      o.serviceAccount,
+		ID:                  juid,
+		Hostname:            o.nodeName,
+		Program:             o.program,
+		PodUID:              o.podUID,
+		ContainerName:       o.container,
+		IsPod:               o.isPod,
+		ImageNameTag:        o.imageName,
+		InitImageNameTag:    o.initImageName,
+		FetchHeaders:        o.fetchHeaders,
+		Deadline:            o.deadline,
+		DeadlineGracePeriod: o.deadlineGracePeriod,
 	}
 
 	job, err := tc.CreateJob(tj)
