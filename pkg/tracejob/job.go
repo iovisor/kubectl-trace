@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strconv"
 
 	"github.com/iovisor/kubectl-trace/pkg/meta"
 	batchv1 "k8s.io/api/batch/v1"
@@ -186,6 +187,11 @@ func (t *TraceJobClient) DeleteJobs(nf TraceJobFilter) error {
 func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 
 	bpfTraceCmd := []string{
+		"/bin/timeout",
+		"--preserve-status",
+		"--signal",
+		"INT",
+		strconv.FormatInt(nj.Deadline, 10),
 		"/bin/trace-runner",
 		"--program=/programs/program.bt",
 	}
@@ -219,7 +225,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 	job := &batchv1.Job{
 		ObjectMeta: commonMeta,
 		Spec: batchv1.JobSpec{
-			ActiveDeadlineSeconds:   int64Ptr(nj.Deadline),
+			ActiveDeadlineSeconds:   int64Ptr(nj.Deadline + nj.DeadlineGracePeriod),
 			TTLSecondsAfterFinished: int32Ptr(5),
 			Parallelism:             int32Ptr(1),
 			Completions:             int32Ptr(1),
@@ -306,7 +312,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 										Command: []string{
 											"/bin/bash",
 											"-c",
-											fmt.Sprintf("kill -SIGINT $(pidof bpftrace) && sleep %i", nj.DeadlineGracePeriod),
+											fmt.Sprintf("kill -SIGINT $(pidof bpftrace) && sleep %i", strconv.FormatInt(nj.DeadlineGracePeriod, 10)),
 										},
 									},
 								},

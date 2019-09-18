@@ -28,7 +28,8 @@ var (
 	// DefaultDeadline is the maximum time a tracejob is allowed to run, in seconds
 	DefaultDeadline = 3600
 	// DefaultDeadlineGracePeriod is the maximum time to wait to print a map or histogram, in seconds
-	DefaultDeadlineGracePeriod = 10
+	// note that it must account for startup time, as the deadline as based on start time
+	DefaultDeadlineGracePeriod = 30
 )
 
 var (
@@ -136,7 +137,7 @@ func NewRunCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 	cmd.Flags().StringVar(&o.initImageName, "init-imagename", o.initImageName, "Custom image for the init container responsible to fetch and prepare linux headers")
 	cmd.Flags().BoolVar(&o.fetchHeaders, "fetch-headers", o.fetchHeaders, "Whether to fetch linux headers or not")
 	cmd.Flags().Int64Var(&o.deadline, "deadline", o.deadline, "Maximum time to allow trace to run in seconds")
-	cmd.Flags().Int64Var(&o.deadline, "deadline-grace-period", o.deadlineGracePeriod, "Maximum wait time to print maps or histograms after deadline, in seconds")
+	cmd.Flags().Int64Var(&o.deadlineGracePeriod, "deadline-grace-period", o.deadlineGracePeriod, "Maximum wait time to print maps or histograms after deadline, in seconds")
 
 	return cmd
 }
