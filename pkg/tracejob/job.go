@@ -312,7 +312,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 										Command: []string{
 											"/bin/bash",
 											"-c",
-											fmt.Sprintf("kill -SIGINT $(pidof bpftrace) && sleep %i", strconv.FormatInt(nj.DeadlineGracePeriod, 10)),
+											fmt.Sprintf("kill -SIGINT $(pidof bpftrace) && sleep %s", strconv.FormatInt(nj.DeadlineGracePeriod, 10)),
 										},
 									},
 								},
