@@ -37,7 +37,7 @@ type TraceJob struct {
 	FetchHeaders        bool
 	Deadline            int64
 	DeadlineGracePeriod int64
-	StartTime           metav1.Time
+	StartTime           *metav1.Time
 	Status              TraceJobStatus
 }
 
@@ -133,7 +133,7 @@ func (t *TraceJobClient) GetJob(nf TraceJobFilter) ([]TraceJob, error) {
 			ID:        types.UID(id),
 			Namespace: j.Namespace,
 			Hostname:  hostname,
-			StartTime: *j.Status.StartTime,
+			StartTime: j.Status.StartTime,
 			Status:    jobStatus(j),
 		}
 		tjobs = append(tjobs, tj)
