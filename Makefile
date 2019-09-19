@@ -41,6 +41,10 @@ ${trace_runner}:
 cross:
 	IMAGE_NAME=$(IMAGE_NAME) GO111MODULE=on goreleaser --snapshot --rm-dist
 
+.PHONY: release
+release:
+	IMAGE_NAME=$(IMAGE_NAME) GO111MODULE=on goreleaser --rm-dist
+
 .PHONY: clean
 clean:
 	$(RM) -R _output

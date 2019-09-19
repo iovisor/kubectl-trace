@@ -23,6 +23,6 @@ Run goreleaser, make sure to export your GitHub token first.
 
 ```
 export GITHUB_TOKEN=<YOUR_GH_TOKEN>
-make cross
+make release
 ```
 
