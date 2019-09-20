@@ -72,9 +72,10 @@ func CombinedOutputLines(cmd Cmd) (lines []string, err error) {
 }
 
 // InheritOutput sets cmd's output to write to the current process's stdout and stderr
-func InheritOutput(cmd Cmd) {
+func InheritOutput(cmd Cmd) Cmd {
 	cmd.SetStderr(os.Stderr)
 	cmd.SetStdout(os.Stdout)
+	return cmd
 }
 
 // RunLoggingOutputOnFail runs the cmd, logging error output if Run returns an error
@@ -91,4 +92,58 @@ func RunLoggingOutputOnFail(cmd Cmd) error {
 		}
 	}
 	return err
+}
+
+// RunWithStdoutReader runs cmd with stdout piped to readerFunc
+func RunWithStdoutReader(cmd Cmd, readerFunc func(io.Reader) error) error {
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		return err
+	}
+	defer pw.Close()
+	defer pr.Close()
+	cmd.SetStdout(pw)
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- readerFunc(pr)
+		pr.Close()
+	}()
+
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+	err2 := <-errChan
+	if err2 != nil {
+		return err2
+	}
+	return nil
+}
+
+// RunWithStdinWriter runs cmd with writerFunc piped to stdin
+func RunWithStdinWriter(cmd Cmd, writerFunc func(io.Writer) error) error {
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		return err
+	}
+	defer pw.Close()
+	defer pr.Close()
+	cmd.SetStdin(pr)
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- writerFunc(pw)
+		pw.Close()
+	}()
+
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+	err2 := <-errChan
+	if err2 != nil {
+		return err2
+	}
+	return nil
 }

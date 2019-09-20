@@ -17,17 +17,11 @@ limitations under the License.
 package docker
 
 import (
-	"regexp"
-
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
 	"sigs.k8s.io/kind/pkg/container/cri"
 	"sigs.k8s.io/kind/pkg/exec"
 )
-
-// Docker container IDs are hex, more than one character, and on their own line
-var containerIDRegex = regexp.MustCompile("^[a-f0-9]+$")
 
 // RunOpt is an option for Run
 type RunOpt func(*runOpts) *runOpts
@@ -38,6 +32,7 @@ type runOpts struct {
 	RunArgs       []string
 	ContainerArgs []string
 	Mounts        []cri.Mount
+	PortMappings  []cri.PortMapping
 }
 
 // WithRunArgs sets the args for docker run
@@ -67,9 +62,16 @@ func WithMounts(mounts []cri.Mount) RunOpt {
 	}
 }
 
+// WithPortMappings sets the container port mappings to the host
+func WithPortMappings(portMappings []cri.PortMapping) RunOpt {
+	return func(r *runOpts) *runOpts {
+		r.PortMappings = portMappings
+		return r
+	}
+}
+
 // Run creates a container with "docker run", with some error handling
-// it will return the ID of the created container if any, even on error
-func Run(image string, opts ...RunOpt) (id string, err error) {
+func Run(image string, opts ...RunOpt) error {
 	o := &runOpts{}
 	for _, opt := range opts {
 		o = opt(o)
@@ -78,6 +80,9 @@ func Run(image string, opts ...RunOpt) (id string, err error) {
 	runArgs := o.RunArgs
 	for _, mount := range o.Mounts {
 		runArgs = append(runArgs, generateMountBindings(mount)...)
+	}
+	for _, portMapping := range o.PortMappings {
+		runArgs = append(runArgs, generatePortMappings(portMapping)...)
 	}
 	// construct the actual docker run argv
 	args := []string{"run"}
@@ -91,15 +96,7 @@ func Run(image string, opts ...RunOpt) (id string, err error) {
 		for _, line := range output {
 			log.Error(line)
 		}
-		return "", err
+		return err
 	}
-	// if docker created a container the id will be the first line and match
-	// validate the output and get the id
-	if len(output) < 1 {
-		return "", errors.New("failed to get container id, received no output from docker run")
-	}
-	if !containerIDRegex.MatchString(output[0]) {
-		return "", errors.Errorf("failed to get container id, output did not match: %v", output)
-	}
-	return output[0], nil
+	return nil
 }

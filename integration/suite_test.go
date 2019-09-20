@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -12,8 +13,9 @@ import (
 	"github.com/iovisor/kubectl-trace/pkg/cmd"
 	"gotest.tools/icmd"
 	"sigs.k8s.io/kind/pkg/cluster"
-	"sigs.k8s.io/kind/pkg/cluster/config/encoding"
 	"sigs.k8s.io/kind/pkg/cluster/create"
+	"sigs.k8s.io/kind/pkg/container/docker"
+	"sigs.k8s.io/kind/pkg/fs"
 )
 
 var (
@@ -34,16 +36,11 @@ func init() {
 }
 
 func (k *KubectlTraceSuite) SetUpSuite(c *check.C) {
-	cfg, err := encoding.Load("")
-	c.Assert(err, check.IsNil)
-	err = cfg.Validate()
-	c.Assert(err, check.IsNil)
-
 	clusterName, err := generateClusterName()
 	c.Assert(err, check.IsNil)
 	kctx := cluster.NewContext(clusterName)
 
-	err = kctx.Create(cfg, create.Retain(false), create.WaitForReady(time.Duration(0)))
+	err = kctx.Create(create.Retain(false), create.WaitForReady(time.Duration(0)))
 	c.Assert(err, check.IsNil)
 	k.kindContext = kctx
 
@@ -51,11 +48,22 @@ func (k *KubectlTraceSuite) SetUpSuite(c *check.C) {
 
 	c.Assert(err, check.IsNil)
 
+	// copy the bpftrace into a tar
+	dir, err := fs.TempDir("", "image-tar")
+	c.Assert(err, check.IsNil)
+	defer os.RemoveAll(dir)
+	imageTarPath := filepath.Join(dir, "image.tar")
+
+	err = docker.Save(cmd.ImageNameTag, imageTarPath)
+	c.Assert(err, check.IsNil)
+
+	f, err := os.Open(imageTarPath)
+	c.Assert(err, check.IsNil)
+
 	// copy the bpftrace image to the nodes
 	for _, n := range nodes {
-		loadcomm := fmt.Sprintf("docker save %s | docker exec -i %s docker load", cmd.ImageNameTag, n.String())
-		res := icmd.RunCommand("bash", "-c", loadcomm)
-		c.Assert(res.Error, check.IsNil)
+		err = n.LoadImageArchive(f)
+		c.Assert(err, check.IsNil)
 	}
 }
 

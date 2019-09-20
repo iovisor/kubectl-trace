@@ -18,25 +18,29 @@ package nodes
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 
-	"k8s.io/apimachinery/pkg/util/version"
 	"sigs.k8s.io/kind/pkg/cluster/constants"
 
 	"sigs.k8s.io/kind/pkg/container/docker"
 	"sigs.k8s.io/kind/pkg/exec"
-	"sigs.k8s.io/kind/pkg/util"
+)
+
+const (
+	// Docker default bridge network is named "bridge" (https://docs.docker.com/network/bridge/#use-the-default-bridge-network)
+	defaultNetwork = "bridge"
+	httpProxy      = "HTTP_PROXY"
+	httpsProxy     = "HTTPS_PROXY"
+	noProxy        = "NO_PROXY"
 )
 
 // Node represents a handle to a kind node
@@ -68,7 +72,8 @@ func (n *Node) Command(command string, args ...string) exec.Cmd {
 type nodeCache struct {
 	mu                sync.RWMutex
 	kubernetesVersion string
-	ip                string
+	ipv4              string
+	ipv6              string
 	ports             map[int32]int32
 	role              string
 }
@@ -85,10 +90,10 @@ func (cache *nodeCache) KubeVersion() string {
 	return cache.kubernetesVersion
 }
 
-func (cache *nodeCache) IP() string {
+func (cache *nodeCache) IP() (string, string) {
 	cache.mu.RLock()
 	defer cache.mu.RUnlock()
-	return cache.ip
+	return cache.ipv4, cache.ipv6
 }
 
 func (cache *nodeCache) HostPort(p int32) (int32, bool) {
@@ -116,12 +121,6 @@ func (n *Node) Name() string {
 	return n.name
 }
 
-// SignalStart sends SIGUSR1 to the node, which signals our entrypoint to boot
-// see images/node/entrypoint
-func (n *Node) SignalStart() error {
-	return docker.Kill("SIGUSR1", n.name)
-}
-
 // CopyTo copies the source file on the host to dest on the node
 func (n *Node) CopyTo(source, dest string) error {
 	return docker.CopyTo(source, n.name, dest)
@@ -133,105 +132,6 @@ func (n *Node) CopyTo(source, dest string) error {
 //     otherwise it should be refactored in something more robust in the long term
 func (n *Node) CopyFrom(source, dest string) error {
 	return docker.CopyFrom(n.name, source, dest)
-}
-
-// WaitForDocker waits for Docker to be ready on the node
-// it returns true on success, and false on a timeout
-func (n *Node) WaitForDocker(until time.Time) bool {
-	return tryUntil(until, func() bool {
-		cmd := n.Command("systemctl", "is-active", "docker")
-		out, err := exec.CombinedOutputLines(cmd)
-		if err != nil {
-			return false
-		}
-		return len(out) == 1 && out[0] == "active"
-	})
-}
-
-// helper that calls `try()`` in a loop until the deadline `until`
-// has passed or `try()`returns true, returns wether try ever returned true
-func tryUntil(until time.Time, try func() bool) bool {
-	for until.After(time.Now()) {
-		if try() {
-			return true
-		}
-	}
-	return false
-}
-
-// LoadImages loads image tarballs stored on the node into docker on the node
-func (n *Node) LoadImages() {
-	// load images cached on the node into docker
-	if err := n.Command(
-		"/bin/bash", "-c",
-		// use xargs to load images in parallel
-		`find /kind/images -name *.tar -print0 | xargs -0 -n 1 -P $(nproc) docker load -i`,
-	).Run(); err != nil {
-		log.Warningf("Failed to preload docker images: %v", err)
-		return
-	}
-
-	// if this fails, we don't care yet, but try to get the kubernetes version
-	// and see if we can skip retagging for amd64
-	// if this fails, we can just assume some unknown version and re-tag
-	// in a future release of kind, we can probably drop v1.11 support
-	// and remove the logic below this comment entirely
-	if rawVersion, err := n.KubeVersion(); err == nil {
-		if ver, err := version.ParseGeneric(rawVersion); err == nil {
-			if !ver.LessThan(version.MustParseSemantic("v1.12.0")) {
-				return
-			}
-		}
-	}
-
-	// for older releases, we need the images to have the arch in their name
-	// bazel built images were missing these, newer releases do not use them
-	// for any builds ...
-	// retag images that are missing -amd64 as image:tag -> image-amd64:tag
-	// TODO(bentheelder): this is a bit gross, move this logic out of bash
-	if err := n.Command(
-		"/bin/bash", "-c",
-		fmt.Sprintf(`docker images --format='{{.Repository}}:{{.Tag}}' | grep -v %s | xargs -L 1 -I '{}' /bin/bash -c 'docker tag "{}" "$(echo "{}" | sed s/:/-%s:/)"'`,
-			util.GetArch(), util.GetArch()),
-	).Run(); err != nil {
-		log.Warningf("Failed to re-tag docker images: %v", err)
-	}
-}
-
-// FixMounts will correct mounts in the node container to meet the right
-// sharing and permissions for systemd and Docker / Kubernetes
-func (n *Node) FixMounts() error {
-	// Check if userns-remap is enabled
-	if docker.UsernsRemap() {
-		// The binary /bin/mount should be owned by root:root in order to execute
-		// the following mount commands
-		if err := n.Command("chown", "root:root", "/bin/mount").Run(); err != nil {
-			return err
-		}
-		// The binary /bin/mount should have the setuid bit
-		if err := n.Command("chmod", "-s", "/bin/mount").Run(); err != nil {
-			return err
-		}
-	}
-
-	// systemd-in-a-container should have read only /sys
-	// https://www.freedesktop.org/wiki/Software/systemd/ContainerInterface/
-	// however, we need other things from `docker run --privileged` ...
-	// and this flag also happens to make /sys rw, amongst other things
-	if err := n.Command("mount", "-o", "remount,ro", "/sys").Run(); err != nil {
-		return err
-	}
-	// kubernetes needs shared mount propagation
-	if err := n.Command("mount", "--make-shared", "/").Run(); err != nil {
-		return err
-	}
-	if err := n.Command("mount", "--make-shared", "/run").Run(); err != nil {
-		return err
-	}
-	if err := n.Command("mount", "--make-shared", "/var/lib/docker").Run(); err != nil {
-		return err
-	}
-	return nil
 }
 
 // KubeVersion returns the Kubernetes version installed on the node
@@ -258,25 +158,30 @@ func (n *Node) KubeVersion() (version string, err error) {
 }
 
 // IP returns the IP address of the node
-func (n *Node) IP() (ip string, err error) {
+func (n *Node) IP() (ipv4 string, ipv6 string, err error) {
 	// use the cached version first
-	cachedIP := n.cache.IP()
-	if cachedIP != "" {
-		return cachedIP, nil
+	cachedIPv4, cachedIPv6 := n.cache.IP()
+	// TODO: this assumes there are always ipv4 and ipv6 cached addresses
+	if cachedIPv4 != "" && cachedIPv6 != "" {
+		return cachedIPv4, cachedIPv6, nil
 	}
 	// retrive the IP address of the node using docker inspect
-	lines, err := docker.Inspect(n.name, "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}")
+	lines, err := docker.Inspect(n.name, "{{range .NetworkSettings.Networks}}{{.IPAddress}},{{.GlobalIPv6Address}}{{end}}")
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get file")
+		return "", "", errors.Wrap(err, "failed to get container details")
 	}
 	if len(lines) != 1 {
-		return "", errors.Errorf("file should only be one line, got %d lines", len(lines))
+		return "", "", errors.Errorf("file should only be one line, got %d lines", len(lines))
 	}
-	ip = lines[0]
+	ips := strings.Split(lines[0], ",")
+	if len(ips) != 2 {
+		return "", "", errors.Errorf("container addresses should have 2 values, got %d values", len(ips))
+	}
 	n.cache.set(func(cache *nodeCache) {
-		cache.ip = ip
+		cache.ipv4 = ips[0]
+		cache.ipv6 = ips[1]
 	})
-	return ip, nil
+	return ips[0], ips[1], nil
 }
 
 // Ports returns a specific port mapping for the node
@@ -333,45 +238,6 @@ func (n *Node) Role() (role string, err error) {
 	return role, nil
 }
 
-// matches kubeconfig server entry like:
-//    server: https://172.17.0.2:6443
-// which we rewrite to:
-//    server: https://localhost:$PORT
-var serverAddressRE = regexp.MustCompile(`^(\s+server:) https://.*:\d+$`)
-
-// WriteKubeConfig writes a fixed KUBECONFIG to dest
-// this should only be called on a control plane node
-// While copyng to the host machine the control plane address
-// is replaced with local host and the control plane port with
-// a randomly generated port reserved during node creation.
-func (n *Node) WriteKubeConfig(dest string, hostPort int32) error {
-	cmd := n.Command("cat", "/etc/kubernetes/admin.conf")
-	lines, err := exec.CombinedOutputLines(cmd)
-	if err != nil {
-		return errors.Wrap(err, "failed to get kubeconfig from node")
-	}
-
-	// fix the config file, swapping out the server for the forwarded localhost:port
-	var buff bytes.Buffer
-	for _, line := range lines {
-		match := serverAddressRE.FindStringSubmatch(line)
-		if len(match) > 1 {
-			line = fmt.Sprintf("%s https://localhost:%d", match[1], hostPort)
-		}
-		buff.WriteString(line)
-		buff.WriteString("\n")
-	}
-
-	// create the directory to contain the KUBECONFIG file.
-	// 0755 is taken from client-go's config handling logic: https://github.com/kubernetes/client-go/blob/5d107d4ebc00ee0ea606ad7e39fd6ce4b0d9bf9e/tools/clientcmd/loader.go#L412
-	err = os.MkdirAll(filepath.Dir(dest), 0755)
-	if err != nil {
-		return errors.Wrap(err, "failed to create kubeconfig output directory")
-	}
-
-	return ioutil.WriteFile(dest, buff.Bytes(), 0600)
-}
-
 // WriteFile writes content to dest on the node
 func (n *Node) WriteFile(dest, content string) error {
 	// create destination directory
@@ -384,32 +250,37 @@ func (n *Node) WriteFile(dest, content string) error {
 	return n.Command("cp", "/dev/stdin", dest).SetStdin(strings.NewReader(content)).Run()
 }
 
-// NeedProxy returns true if the host environment appears to have proxy settings
-func NeedProxy() bool {
-	details := getProxyDetails()
-	return len(details.Envs) > 0
+// ImageID returns the ID for a given image if it is present on the node
+func (n *Node) ImageID(image string) (string, error) {
+	var out bytes.Buffer
+	if err := n.Command("crictl", "inspecti", image).SetStdout(&out).Run(); err != nil {
+		return "", err
+	}
+
+	// we only care about the image ID
+	crictlOut := struct {
+		Status struct {
+			ID string `json:"id"`
+		} `json:"status"`
+	}{}
+	if err := json.Unmarshal(out.Bytes(), &crictlOut); err != nil {
+		return "", err
+	}
+
+	return crictlOut.Status.ID, nil
 }
 
-// SetProxy configures proxy settings for the node
-//
-// Currently it only creates systemd drop-in for Docker daemon
-// as described in Docker documentation: https://docs.docker.com/config/daemon/systemd/#http-proxy
-//
-// See also: NeedProxy and getProxyDetails
-func (n *Node) SetProxy() error {
-	details := getProxyDetails()
-	// configure Docker daemon to use proxy
-	proxies := ""
-	for key, val := range details.Envs {
-		proxies += fmt.Sprintf("\"%s=%s\" ", key, val)
+// LoadImageArchive will load the image contents in the image reader to the
+// k8s.io namespace on the node such that the image can be used from a
+// Kubernetes pod
+func (n *Node) LoadImageArchive(image io.Reader) error {
+	cmd := n.Command(
+		"ctr", "--namespace=k8s.io", "images", "import", "-",
+	)
+	cmd.SetStdin(image)
+	if err := cmd.Run(); err != nil {
+		return errors.Wrap(err, "failed to load image")
 	}
-
-	err := n.WriteFile("/etc/systemd/system/docker.service.d/http-proxy.conf",
-		"[Service]\nEnvironment="+proxies)
-	if err != nil {
-		errors.Wrap(err, "failed to create http-proxy drop-in")
-	}
-
 	return nil
 }
 
@@ -421,22 +292,67 @@ type proxyDetails struct {
 
 // getProxyDetails returns a struct with the host environment proxy settings
 // that should be passed to the nodes
-func getProxyDetails() proxyDetails {
-	var proxyEnvs = []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"}
+func getProxyDetails() (*proxyDetails, error) {
+	var proxyEnvs = []string{httpProxy, httpsProxy, noProxy}
 	var val string
 	var details proxyDetails
 	details.Envs = make(map[string]string)
 
+	proxySupport := false
+
 	for _, name := range proxyEnvs {
 		val = os.Getenv(name)
 		if val != "" {
+			proxySupport = true
 			details.Envs[name] = val
+			details.Envs[strings.ToLower(name)] = val
 		} else {
 			val = os.Getenv(strings.ToLower(name))
 			if val != "" {
+				proxySupport = true
 				details.Envs[name] = val
+				details.Envs[strings.ToLower(name)] = val
 			}
 		}
 	}
-	return details
+
+	// Specifically add the docker network subnets to NO_PROXY if we are using proxies
+	if proxySupport {
+		subnets, err := getSubnets(defaultNetwork)
+		if err != nil {
+			return nil, err
+		}
+		noProxyList := strings.Join(append(subnets, details.Envs[noProxy]), ",")
+		details.Envs[noProxy] = noProxyList
+		details.Envs[strings.ToLower(noProxy)] = noProxyList
+	}
+
+	return &details, nil
+}
+
+// getSubnets returns a slice of subnets for a specified network
+func getSubnets(networkName string) ([]string, error) {
+	format := `{{range (index (index . "IPAM") "Config")}}{{index . "Subnet"}} {{end}}`
+	lines, err := docker.NetworkInspect([]string{networkName}, format)
+	if err != nil {
+		return nil, err
+	}
+	return strings.Split(strings.TrimSpace(lines[0]), " "), nil
+}
+
+// EnableIPv6 enables IPv6 inside the node container and in the inner docker daemon
+func (n *Node) EnableIPv6() error {
+	// enable ipv6
+	cmd := n.Command("sysctl", "net.ipv6.conf.all.disable_ipv6=0")
+	err := exec.RunLoggingOutputOnFail(cmd)
+	if err != nil {
+		return errors.Wrap(err, "failed to enable ipv6")
+	}
+	// enable ipv6 forwarding
+	cmd = n.Command("sysctl", "net.ipv6.conf.all.forwarding=1")
+	err = exec.RunLoggingOutputOnFail(cmd)
+	if err != nil {
+		return errors.Wrap(err, "failed to enable ipv6 forwarding")
+	}
+	return nil
 }

@@ -66,11 +66,6 @@ func (c *containerCmd) Run() error {
 			"-i", // interactive so we can supply input
 		)
 	}
-	if c.stderr != nil || c.stdout != nil {
-		args = append(args,
-			"-t", // use a tty so we can get output
-		)
-	}
 	// set env
 	for _, env := range c.env {
 		args = append(args, "-e", env)
