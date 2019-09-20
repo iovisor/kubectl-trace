@@ -19,26 +19,34 @@ package nodes
 import (
 	"fmt"
 
+	"sigs.k8s.io/kind/pkg/internal/cluster/kubeadm"
+
 	"github.com/pkg/errors"
-	"sigs.k8s.io/kind/pkg/cluster/internal/haproxy"
+	"sigs.k8s.io/kind/pkg/internal/cluster/loadbalancer"
 )
 
-// GetControlPlaneEndpoint returns the control plane endpoint in case the
-// cluster has an external load balancer in front of the control-plane nodes,
-// otherwise return an empty string.
-func GetControlPlaneEndpoint(allNodes []Node) (string, error) {
+// GetControlPlaneEndpoint returns the control plane endpoints for IPv4 and IPv6
+// in case the cluster has an external load balancer in front of the control-plane nodes,
+// otherwise return the bootstrap node IPs
+func GetControlPlaneEndpoint(allNodes []Node) (string, string, error) {
 	node, err := ExternalLoadBalancerNode(allNodes)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	// if there is no external load balancer
+	controlPlanePort := loadbalancer.ControlPlanePort
+	// if there is no external load balancer use the bootstrap node
 	if node == nil {
-		return "", nil
+		node, err = BootstrapControlPlaneNode(allNodes)
+		if err != nil {
+			return "", "", err
+		}
+		controlPlanePort = kubeadm.APIServerPort
 	}
-	// gets the IP of the load balancer
-	loadBalancerIP, err := node.IP()
+
+	// gets the control plane IP addresses
+	controlPlaneIPv4, controlPlaneIPv6, err := node.IP()
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to get IP for node: %s", node.Name())
+		return "", "", errors.Wrapf(err, "failed to get IPs for node: %s", node.Name())
 	}
-	return fmt.Sprintf("%s:%d", loadBalancerIP, haproxy.ControlPlanePort), nil
+	return fmt.Sprintf("%s:%d", controlPlaneIPv4, controlPlanePort), fmt.Sprintf("[%s]:%d", controlPlaneIPv6, controlPlanePort), nil
 }

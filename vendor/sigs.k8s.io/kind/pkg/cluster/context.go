@@ -17,14 +17,13 @@ limitations under the License.
 package cluster
 
 import (
-	"sigs.k8s.io/kind/pkg/cluster/config"
 	"sigs.k8s.io/kind/pkg/cluster/constants"
 	"sigs.k8s.io/kind/pkg/cluster/create"
-	internalcontext "sigs.k8s.io/kind/pkg/cluster/internal/context"
-	internalcreate "sigs.k8s.io/kind/pkg/cluster/internal/create"
-	internaldelete "sigs.k8s.io/kind/pkg/cluster/internal/delete"
-	"sigs.k8s.io/kind/pkg/cluster/logs"
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
+	internalcontext "sigs.k8s.io/kind/pkg/internal/cluster/context"
+	internalcreate "sigs.k8s.io/kind/pkg/internal/cluster/create"
+	internaldelete "sigs.k8s.io/kind/pkg/internal/cluster/delete"
+	internallogs "sigs.k8s.io/kind/pkg/internal/cluster/logs"
 )
 
 // TODO(bentheelder): reimplement GetControlPlaneMeta for Context
@@ -70,15 +69,8 @@ func (c *Context) KubeConfigPath() string {
 }
 
 // Create provisions and starts a kubernetes-in-docker cluster
-func (c *Context) Create(cfg *config.Cluster, options ...create.ClusterOption) error {
-	// apply create options
-	opts := &internalcreate.Options{
-		SetupKubernetes: true,
-	}
-	for _, option := range options {
-		opts = option(opts)
-	}
-	return internalcreate.Cluster(c.ic, cfg, opts)
+func (c *Context) Create(options ...create.ClusterOption) error {
+	return internalcreate.Cluster(c.ic, options...)
 }
 
 // Delete tears down a kubernetes-in-docker cluster
@@ -91,11 +83,17 @@ func (c *Context) ListNodes() ([]nodes.Node, error) {
 	return c.ic.ListNodes()
 }
 
+// ListInternalNodes returns the list of container IDs for the "nodes" in the cluster
+// that are not external
+func (c *Context) ListInternalNodes() ([]nodes.Node, error) {
+	return c.ic.ListInternalNodes()
+}
+
 // CollectLogs will populate dir with cluster logs and other debug files
 func (c *Context) CollectLogs(dir string) error {
-	nodes, err := c.ListNodes()
+	nodes, err := c.ListInternalNodes()
 	if err != nil {
 		return err
 	}
-	return logs.Collect(nodes, dir)
+	return internallogs.Collect(nodes, dir)
 }
