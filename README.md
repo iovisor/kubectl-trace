@@ -8,19 +8,19 @@ of [bpftrace](https://github.com/iovisor/bpftrace) programs in your Kubernetes c
 <!-- toc -->
 
 - [Installing](#installing)
-  * [Pre-built binaries](#pre-built-binaries)
-  * [Source](#source)
-  * [Packages](#packages)
-    + [Arch - AUR](#arch---aur)
+  - [Pre-built binaries](#pre-built-binaries)
+  - [Source](#source)
+  - [Packages](#packages)
+    - [Arch - AUR](#arch---aur)
 - [Architecture](#architecture)
 - [Usage](#usage)
-  * [Run a program from string literal](#run-a-program-from-string-literal)
-  * [Run a program from file](#run-a-program-from-file)
-  * [Run a program against a Pod](#run-a-program-against-a-pod)
-  * [Running against a Pod vs against a Node](#running-against-a-pod-vs-against-a-node)
-  * [Using a custom service account](#using-a-custom-service-account)
-  * [Executing in a cluster using Pod Security Policies](#executing-in-a-cluster-using-pod-security-policies)
-  * [More bpftrace programs](#more-bpftrace-programs)
+  - [Run a program from string literal](#run-a-program-from-string-literal)
+  - [Run a program from file](#run-a-program-from-file)
+  - [Run a program against a Pod](#run-a-program-against-a-pod)
+  - [Running against a Pod vs against a Node](#running-against-a-pod-vs-against-a-node)
+  - [Using a custom service account](#using-a-custom-service-account)
+  - [Executing in a cluster using Pod Security Policies](#executing-in-a-cluster-using-pod-security-policies)
+  - [More bpftrace programs](#more-bpftrace-programs)
 - [Status of the project](#status-of-the-project)
 - [Contributing](#contributing)
 
@@ -37,7 +37,7 @@ The commands here show `amd64` versions, `386` versions are available in the rel
 **Linux**
 
 ```bash
-curl -Lo https://github.com/iovisor/kubectl-trace/releases/download/v0.1.0-rc.0/kubectl-trace_0.1.0-rc.0_linux_amd64.tar.gz
+curl -Lo https://github.com/iovisor/kubectl-trace/releases/download/v0.1.0-rc.1/kubectl-trace_0.1.0-rc.1_linux_amd64.tar.gz
 tar -xvf kubectl-trace.tar.gz
 mv kubectl-trace /usr/local/bin/kubectl-trace
 ```
@@ -45,7 +45,7 @@ mv kubectl-trace /usr/local/bin/kubectl-trace
 **OSX**
 
 ```bash
-curl -L -o kubectl-trace.tar.gz https://github.com/iovisor/kubectl-trace/releases/download/v0.1.0-rc.0/kubectl-trace_0.1.0-rc.0_darwin_amd64.tar.gz
+curl -L -o kubectl-trace.tar.gz https://github.com/iovisor/kubectl-trace/releases/download/v0.1.0-rc.1/kubectl-trace_0.1.0-rc.1_darwin_amd64.tar.gz
 tar -xvf kubectl-trace.tar.gz
 mv kubectl-trace /usr/local/bin/kubectl-trace
 ```
@@ -55,7 +55,7 @@ mv kubectl-trace /usr/local/bin/kubectl-trace
 
 In PowerShell v5+
 ```powershell
-$url = "https://github.com/iovisor/kubectl-trace/releases/download/v0.1.0-rc.0/kubectl-trace_0.1.0-rc.0_windows_amd64.zip"
+$url = "https://github.com/iovisor/kubectl-trace/releases/download/v0.1.0-rc.1/kubectl-trace_0.1.0-rc.1_windows_amd64.zip"
 $output = "$PSScriptRoot\kubectl-trace.zip"
 
 Invoke-WebRequest -Uri $url -OutFile $output
