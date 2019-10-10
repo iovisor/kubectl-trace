@@ -52,8 +52,10 @@ func NewTraceCommand(streams genericclioptions.IOStreams) *cobra.Command {
 		Short:                 `Execute and manage bpftrace programs`, // Wrap with i18n.T()
 		Long:                  traceLong,                              // Wrap with templates.LongDesc()
 		Example:               fmt.Sprintf(traceExamples, "kubectl"),  // Wrap with templates.Examples()
-		Run: func(c *cobra.Command, args []string) {
+		PersistentPreRun: func(c *cobra.Command, args []string) {
 			c.SetOutput(streams.ErrOut)
+		},
+		Run: func(c *cobra.Command, args []string) {
 			cobra.NoArgs(c, args)
 			c.Help()
 		},
