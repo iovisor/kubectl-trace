@@ -337,6 +337,12 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 							},
 						},
 					},
+					Tolerations: []apiv1.Toleration{
+						apiv1.Toleration{
+							Effect:   apiv1.TaintEffectNoSchedule,
+							Operator: apiv1.TolerationOpExists,
+						},
+					},
 				},
 			},
 		},
