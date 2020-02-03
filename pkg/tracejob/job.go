@@ -349,7 +349,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 	}
 
 	if nj.FetchHeaders {
-		// If we aren't downloading headers, add the initContainer and set up mounts
+		// If we are downloading headers, add the initContainer and set up mounts
 		job.Spec.Template.Spec.InitContainers = []apiv1.Container{
 			apiv1.Container{
 				Name:  "kubectl-trace-init",
@@ -388,6 +388,10 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 						Name:      "linux-headers-generated",
 						MountPath: "/usr/src/",
 					},
+					apiv1.VolumeMount{
+						Name:      "boot-host",
+						MountPath: "/boot.host",
+					},
 				},
 			},
 		}
@@ -422,6 +426,14 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 				VolumeSource: apiv1.VolumeSource{
 					HostPath: &apiv1.HostPathVolumeSource{
 						Path: "/var/cache/linux-headers/generated",
+					},
+				},
+			},
+			apiv1.Volume{
+				Name: "boot-host",
+				VolumeSource: apiv1.VolumeSource{
+					HostPath: &apiv1.HostPathVolumeSource{
+						Path: "/boot",
 					},
 				},
 			})
