@@ -14,7 +14,11 @@ generate_headers()
   echo "Generating kernel headers"
 
   cd "${BUILD_DIR}"
-  zcat /proc/config.gz > .config
+  if [ -e /proc/config.gz ]; then
+    zcat /proc/config.gz > .config
+  elif [ -e "/boot.host/config-${KERNEL_VERSION}" ]; then
+    cp "/boot.host/config-${KERNEL_VERSION}" .config
+  fi
   make ARCH=x86 oldconfig > /dev/null
   make ARCH=x86 prepare > /dev/null
 
@@ -32,7 +36,10 @@ fetch_cos_linux_sources()
 
 fetch_generic_linux_sources()
 {
-  kernel_version="$(echo "${KERNEL_VERSION}" | awk -vFS=+ '{ print $1 }')"
+  # 4.19.76-linuxkit -> 4.19.76
+  # 4.14.154-128.181.amzn2.x86_64 -> 4.14.154
+  # 4.19.76+gcp-something -> 4.19.76
+  kernel_version="$(echo "${KERNEL_VERSION}" | awk -vFS='[-+]' '{ print $1 }')"
   major_version="$(echo "${KERNEL_VERSION}" | awk -vFS=. '{ print $1 }')"
 
   echo "Fetching upstream kernel sources for ${kernel_version}."

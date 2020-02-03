@@ -4,7 +4,7 @@ RUN apk add --update \
     bc \
     build-base \
     curl \
-    libelf-dev \
+    elfutils-dev \
     linux-headers \
     make
 
