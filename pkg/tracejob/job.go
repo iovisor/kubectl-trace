@@ -247,10 +247,10 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 							},
 						},
 						apiv1.Volume{
-							Name: "usr-src-host",
+							Name: "usr-host",
 							VolumeSource: apiv1.VolumeSource{
 								HostPath: &apiv1.HostPathVolumeSource{
-									Path: "/usr/src",
+									Path: "/usr",
 								},
 							},
 						},
@@ -447,8 +447,8 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 		// If we aren't downloading headers, unconditionally used the ones linked in /lib/modules
 		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(job.Spec.Template.Spec.Containers[0].VolumeMounts,
 			apiv1.VolumeMount{
-				Name:      "usr-src-host",
-				MountPath: "/usr/src",
+				Name:      "usr-host",
+				MountPath: "/usr-host",
 				ReadOnly:  true,
 			},
 			apiv1.VolumeMount{
