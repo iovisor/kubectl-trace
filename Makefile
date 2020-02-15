@@ -20,7 +20,7 @@ IMAGE_INITCONTAINER_LATEST := $(IMAGE_NAME_INIT):latest
 
 IMAGE_BUILD_FLAGS ?= "--no-cache"
 
-BPFTRACEVERSION ?= "0.9.2-1"
+BPFTRACEVERSION ?= "v0.9.4"
 
 LDFLAGS := -ldflags '-X github.com/iovisor/kubectl-trace/pkg/version.buildTime=$(shell date +%s) -X github.com/iovisor/kubectl-trace/pkg/version.gitCommit=${GIT_COMMIT} -X github.com/iovisor/kubectl-trace/pkg/cmd.ImageNameTag=${IMAGE_TRACERUNNER_COMMIT} -X github.com/iovisor/kubectl-trace/pkg/cmd.InitImageNameTag=${IMAGE_INITCONTAINER_COMMIT}'
 TESTPACKAGES := $(shell go list ./... | grep -v github.com/iovisor/kubectl-trace/integration)
