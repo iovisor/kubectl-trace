@@ -3,6 +3,8 @@ RUN apk add --update \
     bash \
     bc \
     build-base \
+    bison \
+    flex \
     curl \
     elfutils-dev \
     linux-headers \
