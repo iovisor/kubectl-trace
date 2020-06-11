@@ -6,6 +6,8 @@ RUN apk add --update \
     curl \
     elfutils-dev \
     linux-headers \
+    flex \
+    bison \
     make
 
 WORKDIR /

@@ -56,7 +56,7 @@ fetch_generic_linux_sources()
 install_cos_linux_headers()
 {
   if grep -q CHROMEOS_RELEASE_VERSION "${LSB_FILE}" >/dev/null; then
-    BUILD_ID=$(awk '/CHROMEOS_RELEASE_VERSION =/ { print $3 }' "${LSB_FILE}")
+    BUILD_ID=$(awk -F ' *= *' '$1 == "CHROMEOS_RELEASE_VERSION" { print $2}' "$LSB_FILE")
     BUILD_DIR="/linux-lakitu-${BUILD_ID}"
     SOURCES_DIR="${TARGET_DIR}/linux-lakitu-${BUILD_ID}"
 
@@ -88,7 +88,7 @@ install_generic_linux_headers()
 
 install_headers()
 {
-  distro="$(awk '/^NAME =/ { print $3 }' "${OS_RELEASE_FILE}")"
+  distro=$(. "${OS_RELEASE_FILE}" && echo $NAME)
 
   case $distro in
     *"Container-Optimized OS"*)
