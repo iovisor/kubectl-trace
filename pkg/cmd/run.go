@@ -63,6 +63,10 @@ var (
 	bpftraceEmptyErrString        = "the bpftrace programm cannot be empty"
 )
 
+type BpfTool interface {
+
+}
+
 // RunOptions ...
 type RunOptions struct {
 	genericclioptions.IOStreams
@@ -72,8 +76,8 @@ type RunOptions struct {
 
 	// Flags local to this command
 	container           string
-	eval                string
-	program             string
+	bpftraceEval        string
+	bpftraceProgram     string
 	serviceAccount      string
 	imageName           string
 	initImageName       string
@@ -130,8 +134,8 @@ func NewRunCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 
 	cmd.Flags().StringVarP(&o.container, "container", "c", o.container, "Specify the container")
 	cmd.Flags().BoolVarP(&o.attach, "attach", "a", o.attach, "Whether or not to attach to the trace program once it is created")
-	cmd.Flags().StringVarP(&o.eval, "eval", "e", o.eval, "Literal string to be evaluated as a bpftrace program")
-	cmd.Flags().StringVarP(&o.program, "filename", "f", o.program, "File containing a bpftrace program")
+	cmd.Flags().StringVarP(&o.bpftraceEval, "eval", "e", o.bpftraceEval, "Literal string to be evaluated as a bpftrace program")
+	cmd.Flags().StringVarP(&o.bpftraceProgram, "filename", "f", o.bpftraceProgram, "File containing a bpftrace program")
 	cmd.Flags().StringVar(&o.serviceAccount, "serviceaccount", o.serviceAccount, "Service account to use to set in the pod spec of the kubectl-trace job")
 	cmd.Flags().StringVar(&o.imageName, "imagename", o.imageName, "Custom image for the tracerunner")
 	cmd.Flags().StringVar(&o.initImageName, "init-imagename", o.initImageName, "Custom image for the init container responsible to fetch and prepare linux headers")
@@ -167,7 +171,7 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 	if cmd.Flag("eval").Changed == cmd.Flag("filename").Changed {
 		return fmt.Errorf(bpftraceDoubleErrString)
 	}
-	if (cmd.Flag("eval").Changed && len(o.eval) == 0) || (cmd.Flag("filename").Changed && len(o.program) == 0) {
+	if (cmd.Flag("eval").Changed && len(o.bpftraceEval) == 0) || (cmd.Flag("filename").Changed && len(o.bpftraceProgram) == 0) {
 		return fmt.Errorf(bpftraceEmptyErrString)
 	}
 
@@ -177,14 +181,14 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 // Complete completes the setup of the command.
 func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
 	// Prepare program
-	if len(o.program) > 0 {
-		b, err := ioutil.ReadFile(o.program)
+	if len(o.bpftraceProgram) > 0 {
+		b, err := ioutil.ReadFile(o.bpftraceProgram)
 		if err != nil {
 			return fmt.Errorf("error opening program file")
 		}
-		o.program = string(b)
+		o.bpftraceProgram = string(b)
 	} else {
-		o.program = o.eval
+		o.bpftraceProgram = o.bpftraceEval
 	}
 
 	// Prepare namespace
@@ -305,7 +309,7 @@ func (o *RunOptions) Run() error {
 		ServiceAccount:      o.serviceAccount,
 		ID:                  juid,
 		Hostname:            o.nodeName,
-		Program:             o.program,
+		Program:             o.bpftraceProgram,
 		PodUID:              o.podUID,
 		ContainerName:       o.container,
 		IsPod:               o.isPod,
