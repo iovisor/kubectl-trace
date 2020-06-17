@@ -30,6 +30,7 @@ type TraceJob struct {
 	ServiceAccount      string
 	Hostname            string
 	Program             string
+	IsBcc               bool
 	PodUID              string
 	ContainerName       string
 	IsPod               bool
@@ -184,6 +185,7 @@ func (t *TraceJobClient) DeleteJobs(nf TraceJobFilter) error {
 	return nil
 }
 
+// TODO: thread through bcc call
 func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 
 	bpfTraceCmd := []string{
