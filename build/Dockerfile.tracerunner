@@ -16,4 +16,7 @@ FROM ubuntu:19.10
 COPY --from=gobuilder /go/src/github.com/iovisor/kubectl-trace/_output/bin/trace-runner /bin/trace-runner
 COPY --from=bpftrace /usr/bin/bpftrace /usr/bin/bpftrace
 
+RUN apt-get update
+RUN apt-get install -y bpfcc-tools
+
 ENTRYPOINT ["/bin/trace-runner"]
