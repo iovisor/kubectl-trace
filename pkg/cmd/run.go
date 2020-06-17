@@ -57,16 +57,11 @@ var (
 	runCommand                    = "run"
 	usageString                   = "(POD | TYPE/NAME)"
 	requiredArgErrString          = fmt.Sprintf("%s is a required argument for the %s command", usageString, runCommand)
-	containerAsArgOrFlagErrString = "specify container inline as argument or via its flag"
-	bpftraceMissingErrString      = "the bpftrace program is mandatory"
+	bpfMissingErrString           = "you must specify either a bpftrace or a bcc program"
 	bpftraceDoubleErrString       = "specify the bpftrace program either via an external file or via a literal string, not both"
 	bpftraceEmptyErrString        = "the bpftrace programm cannot be empty"
 	bpftraceBccErrString          = "cannot specify both a bpftrace and bcc program"
 )
-
-type BpfTool interface {
-
-}
 
 // RunOptions ...
 type RunOptions struct {
@@ -90,6 +85,7 @@ type RunOptions struct {
 
 	// bcc-specific flags
 	bccTool string
+	bccArgs []string
 	isBcc   bool
 
 	resourceArg string
@@ -156,33 +152,28 @@ func NewRunCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 
 // Validate validates the arguments and flags populating RunOptions accordingly.
 func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
-	containerFlagDefined := cmd.Flag("container").Changed
-	switch len(args) {
-	case 1:
+	bccFlagDefined := cmd.Flag("bcc").Changed
+
+	numArgs := len(args)
+
+	if numArgs == 1 {
 		o.resourceArg = args[0]
-		break
-	// 2nd argument interpreted as container when provided
-	case 2:
-		o.resourceArg = args[0]
-		o.container = args[1]
-		if containerFlagDefined {
-			return fmt.Errorf(containerAsArgOrFlagErrString)
-		}
-		break
-	default:
+	} else if numArgs >= 2 && bccFlagDefined {
+		o.bccArgs = args[1:]
+	} else {
 		return fmt.Errorf(requiredArgErrString)
 	}
 
-	if !cmd.Flag("eval").Changed && !cmd.Flag("filename").Changed {
-		return fmt.Errorf(bpftraceMissingErrString)
+	if !cmd.Flag("eval").Changed && !cmd.Flag("filename").Changed && !cmd.Flag("bcc").Changed {
+		return fmt.Errorf(bpfMissingErrString)
 	}
-	if cmd.Flag("eval").Changed == cmd.Flag("filename").Changed {
+	if cmd.Flag("eval").Changed && cmd.Flag("filename").Changed {
 		return fmt.Errorf(bpftraceDoubleErrString)
 	}
 	if (cmd.Flag("eval").Changed && len(o.bpftraceEval) == 0) || (cmd.Flag("filename").Changed && len(o.bpftraceProgram) == 0) {
 		return fmt.Errorf(bpftraceEmptyErrString)
 	}
-	if (cmd.Flag("eval").Changed || cmd.Flag("filename").Changed) || cmd.Flag("bcc").Changed {
+	if (cmd.Flag("eval").Changed || cmd.Flag("filename").Changed) && cmd.Flag("bcc").Changed {
 		return fmt.Errorf(bpftraceBccErrString)
 	}
 
