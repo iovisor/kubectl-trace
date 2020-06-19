@@ -309,22 +309,45 @@ func (o *RunOptions) Run() error {
 		ConfigClient: coreClient.ConfigMaps(o.namespace),
 	}
 
-	tj := tracejob.TraceJob{
-		Name:                fmt.Sprintf("%s%s", meta.ObjectNamePrefix, string(juid)),
-		Namespace:           o.namespace,
-		ServiceAccount:      o.serviceAccount,
-		ID:                  juid,
-		Hostname:            o.nodeName,
-		Program:             o.bpftraceProgram,
-		IsBcc:               o.isBcc,
-		PodUID:              o.podUID,
-		ContainerName:       o.container,
-		IsPod:               o.isPod,
-		ImageNameTag:        o.imageName,
-		InitImageNameTag:    o.initImageName,
-		FetchHeaders:        o.fetchHeaders,
-		Deadline:            o.deadline,
-		DeadlineGracePeriod: o.deadlineGracePeriod,
+	var tj tracejob.TraceJob
+	if !o.isBcc {
+		tj = tracejob.TraceJob{
+			Name:                fmt.Sprintf("%s%s", meta.ObjectNamePrefix, string(juid)),
+			Namespace:           o.namespace,
+			ServiceAccount:      o.serviceAccount,
+			ID:                  juid,
+			Hostname:            o.nodeName,
+			Program:             o.bpftraceProgram,
+			ProgramArgs:         []string{},
+			IsBcc:               o.isBcc,
+			PodUID:              o.podUID,
+			ContainerName:       o.container,
+			IsPod:               o.isPod,
+			ImageNameTag:        o.imageName,
+			InitImageNameTag:    o.initImageName,
+			FetchHeaders:        o.fetchHeaders,
+			Deadline:            o.deadline,
+			DeadlineGracePeriod: o.deadlineGracePeriod,
+		}
+	} else {
+		tj = tracejob.TraceJob{
+			Name:                fmt.Sprintf("%s%s", meta.ObjectNamePrefix, string(juid)),
+			Namespace:           o.namespace,
+			ServiceAccount:      o.serviceAccount,
+			ID:                  juid,
+			Hostname:            o.nodeName,
+			Program:             o.bccTool,
+			ProgramArgs:         o.bccArgs,
+			IsBcc:               o.isBcc,
+			PodUID:              o.podUID,
+			ContainerName:       o.container,
+			IsPod:               o.isPod,
+			ImageNameTag:        o.imageName,
+			InitImageNameTag:    o.initImageName,
+			FetchHeaders:        o.fetchHeaders,
+			Deadline:            o.deadline,
+			DeadlineGracePeriod: o.deadlineGracePeriod,
+		}
 	}
 
 	job, err := tc.CreateJob(tj)
