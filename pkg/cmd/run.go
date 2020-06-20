@@ -159,6 +159,7 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 	if numArgs == 1 {
 		o.resourceArg = args[0]
 	} else if numArgs >= 2 && bccFlagDefined {
+		o.resourceArg = args[0]
 		o.bccArgs = args[1:]
 	} else {
 		return fmt.Errorf(requiredArgErrString)

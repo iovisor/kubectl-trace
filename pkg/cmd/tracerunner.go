@@ -74,7 +74,7 @@ func (o *TraceRunnerOptions) Validate(cmd *cobra.Command, args []string) error {
 		o.isBcc = true
 		// The image installs BCC through the Ubuntu package which suffixes all the tools with -bpfcc,
 		// e.g. memleak becomes memleak-bpfcc
-		bpfccSuffix := "bpfcc"
+		bpfccSuffix := "-bpfcc"
 		if !strings.HasSuffix(o.bccTool, bpfccSuffix) {
 			o.bccTool += bpfccSuffix
 		}
