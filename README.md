@@ -8,6 +8,7 @@ of [bpftrace](https://github.com/iovisor/bpftrace) programs in your Kubernetes c
 <!-- toc -->
 
 - [Installing](#installing)
+  * [Krew](#krew)
   * [Pre-built binaries](#pre-built-binaries)
   * [Source](#source)
   * [Packages](#packages)
