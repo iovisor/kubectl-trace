@@ -28,6 +28,18 @@ of [bpftrace](https://github.com/iovisor/bpftrace) programs in your Kubernetes c
 
 ## Installing
 
+### Krew
+
+You can install `kubectl trace` using the [Krew](https://github.com/kubernetes-sigs/krew), the package manager for kubectl plugins.
+
+Once you have [Krew installed](https://krew.sigs.k8s.io/docs/user-guide/setup/install/) just run:
+
+```bash
+kubectl krew install trace
+```
+
+You're ready to go!
+
 ### Pre-built binaries
 
 See the [release](https://github.com/iovisor/kubectl-trace/releases) page for the full list of pre-built assets.
