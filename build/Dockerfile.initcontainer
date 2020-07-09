@@ -8,7 +8,8 @@ RUN apk add --update \
     curl \
     elfutils-dev \
     linux-headers \
-    make
+    make \
+    openssl-dev
 
 WORKDIR /
 
