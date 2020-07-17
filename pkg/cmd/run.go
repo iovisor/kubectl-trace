@@ -58,13 +58,15 @@ var (
   # Run a bpftrace inline program on a pod container with a custom image for the bpftrace container that will run your program in the cluster
   %[1]s trace run pod/nginx nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); } --imagename=quay.io/custom-bpftrace-image-name"`
 
-	runCommand                    = "run"
-	usageString                   = "(POD | TYPE/NAME)"
-	requiredArgErrString          = fmt.Sprintf("%s is a required argument for the %s command", usageString, runCommand)
-	containerAsArgOrFlagErrString = "specify container inline as argument or via its flag"
-	bpftraceMissingErrString      = "the bpftrace program is mandatory"
-	bpftraceDoubleErrString       = "specify the bpftrace program either via an external file or via a literal string, not both"
-	bpftraceEmptyErrString        = "the bpftrace programm cannot be empty"
+	runCommand                             = "run"
+	usageString                            = "(POD | TYPE/NAME)"
+	requiredArgErrString                   = fmt.Sprintf("%s is a required argument for the %s command", usageString, runCommand)
+	containerAsArgOrFlagErrString          = "specify container inline as argument or via its flag"
+	bpftraceMissingErrString               = "the bpftrace program is mandatory"
+	bpftraceDoubleErrString                = "specify the bpftrace program either via an external file or via a literal string, not both"
+	bpftraceEmptyErrString                 = "the bpftrace programm cannot be empty"
+	bpftracePatchWithoutTypeErrString      = "to use --patch you must also specify the --patch-type argument"
+	bpftracePatchTypeWithoutPatchErrString = "to use --patch-type you must specify the --patch argument"
 )
 
 // RunOptions ...
@@ -90,6 +92,9 @@ type RunOptions struct {
 	isPod       bool
 	podUID      string
 	nodeName    string
+
+	patch     string
+	patchType string
 
 	clientConfig *rest.Config
 }
@@ -142,6 +147,8 @@ func NewRunCommand(factory cmdutil.Factory, streams genericclioptions.IOStreams)
 	cmd.Flags().BoolVar(&o.fetchHeaders, "fetch-headers", o.fetchHeaders, "Whether to fetch linux headers or not")
 	cmd.Flags().Int64Var(&o.deadline, "deadline", o.deadline, "Maximum time to allow trace to run in seconds")
 	cmd.Flags().Int64Var(&o.deadlineGracePeriod, "deadline-grace-period", o.deadlineGracePeriod, "Maximum wait time to print maps or histograms after deadline, in seconds")
+	cmd.Flags().StringVar(&o.patch, "patch", "", "path of YAML or JSON file used to patch the job definition before creation")
+	cmd.Flags().StringVar(&o.patchType, "patch-type", "", "patch strategy to use: json, merge, or strategic")
 
 	return cmd
 }
@@ -173,6 +180,17 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 	}
 	if (cmd.Flag("eval").Changed && len(o.eval) == 0) || (cmd.Flag("filename").Changed && len(o.program) == 0) {
 		return fmt.Errorf(bpftraceEmptyErrString)
+	}
+
+	havePatch := cmd.Flag("patch").Changed
+	havePatchType := cmd.Flag("patch-type").Changed
+
+	if havePatch && !havePatchType {
+		return fmt.Errorf(bpftracePatchWithoutTypeErrString)
+	}
+
+	if !havePatch && havePatchType {
+		return fmt.Errorf(bpftracePatchTypeWithoutPatchErrString)
 	}
 
 	return nil
@@ -318,6 +336,8 @@ func (o *RunOptions) Run() error {
 		FetchHeaders:        o.fetchHeaders,
 		Deadline:            o.deadline,
 		DeadlineGracePeriod: o.deadlineGracePeriod,
+		Patch:               o.patch,
+		PatchType:           o.patchType,
 	}
 
 	job, err := tc.CreateJob(tj)

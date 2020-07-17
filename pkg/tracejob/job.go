@@ -2,19 +2,24 @@ package tracejob
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"strconv"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/iovisor/kubectl-trace/pkg/meta"
 	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	yamlutil "k8s.io/apimachinery/pkg/util/yaml"
 	batchv1typed "k8s.io/client-go/kubernetes/typed/batch/v1"
 	corev1typed "k8s.io/client-go/kubernetes/typed/core/v1"
+	"sigs.k8s.io/yaml"
 )
 
 type TraceJobClient struct {
@@ -41,6 +46,8 @@ type TraceJob struct {
 	DeadlineGracePeriod int64
 	StartTime           *metav1.Time
 	Status              TraceJobStatus
+	Patch               string
+	PatchType           string
 }
 
 // WithOutStream setup a file stream to output trace job operation information
@@ -473,6 +480,16 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 	if _, err := t.ConfigClient.Create(context.Background(), cm, metav1.CreateOptions{}); err != nil {
 		return nil, err
 	}
+
+	// Optionally patch the job before creating it
+	if nj.PatchType != "" && nj.Patch != "" {
+		newJob, err := patchJobFile(job, nj.PatchType, nj.Patch)
+		if err != nil {
+			return nil, err
+		}
+		job = newJob
+	}
+
 	return t.JobClient.Create(context.Background(), job, metav1.CreateOptions{})
 }
 
@@ -547,4 +564,73 @@ func jobStatus(j batchv1.Job) TraceJobStatus {
 		return TraceJobFailed
 	}
 	return TraceJobUnknown
+}
+
+var patchTypes = map[string]types.PatchType{
+	"json":      types.JSONPatchType,
+	"merge":     types.MergePatchType,
+	"strategic": types.StrategicMergePatchType,
+}
+
+func patchJobFile(j *batchv1.Job, patchType, patchPath string) (*batchv1.Job, error) {
+	patchYAML, err := ioutil.ReadFile(patchPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read patch yaml path %v: %s", patchPath, err)
+	}
+	return patchJob(j, patchType, patchYAML)
+}
+
+func patchJob(j *batchv1.Job, patchType string, patchBytes []byte) (*batchv1.Job, error) {
+	var err error
+	patchJSON := patchBytes
+
+	if !json.Valid(patchBytes) {
+		// Convert YAML to JSON for patching
+		patchJSON, err = yamlutil.ToJSON(patchBytes)
+		if err != nil {
+			return nil, fmt.Errorf("converting patch yaml to json: %s", err)
+		}
+	}
+
+	jobYAML, err := yaml.Marshal(j)
+	if err != nil {
+		return nil, fmt.Errorf("marshal job to yaml: %s", err)
+	}
+
+	jobJSON, err := yamlutil.ToJSON(jobYAML)
+	if err != nil {
+		return nil, fmt.Errorf("converting job yaml to json: %s", err)
+	}
+
+	// Patch job JSON
+	typ := patchTypes[patchType]
+	switch typ {
+	case types.JSONPatchType:
+		raw, err := jsonpatch.DecodePatch(patchJSON)
+		if err != nil {
+			return nil, fmt.Errorf("decoding json patch: %s", err)
+		}
+		jobJSON, err = raw.Apply(jobJSON)
+
+	case types.MergePatchType:
+		jobJSON, err = jsonpatch.MergePatch(jobJSON, patchJSON)
+
+	case types.StrategicMergePatchType:
+		jobJSON, err = strategicpatch.StrategicMergePatch(jobJSON, patchJSON, batchv1.Job{})
+
+	default:
+		return nil, fmt.Errorf("%v is an invalid patch type", patchType)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("applying %s patch to job: %s", patchType, err)
+	}
+
+	// Unmarshal back to Job object
+	newJob := batchv1.Job{}
+	if err = json.Unmarshal(jobJSON, &newJob); err != nil {
+		return nil, fmt.Errorf("failed to marshal job from patched json: %s", err)
+	}
+
+	return &newJob, nil
 }
