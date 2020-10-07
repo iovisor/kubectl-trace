@@ -16,12 +16,46 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	bpftrace = "bpftrace"
+	bcc      = "bcc"
+)
+
+var (
+	bpfTraceBinaryPath = "/bin/bpftrace"
+)
+
 type TraceRunnerOptions struct {
-	podUID             string
-	containerName      string
-	inPod              bool
-	programPath        string
-	bpftraceBinaryPath string
+	// The tracing system to use.
+	// tracer = bpftrace | bcc | perf
+	tracer string
+
+	// What entity will be traced.
+	// target = node | pod | container
+	target string
+
+	// Where will the tracing system send output.
+	// output = stdout | file | directory
+	output string
+
+	// In the case of bcc the name of the bcc program to execute.
+	// In the case of bpftrace the path to contents of the user provided expression or program.
+	program string
+
+	// In the case of bcc the user provided arguments to pass on to program.
+	// Not used for bpftrace.
+	programArgs string
+
+	// Required when target is pod or container.
+	// Note: In the future this option might be replaced by a process selector expression.
+	podUID string
+
+	// Required when target is container.
+	// Note: In the future this option might be replaced by a process selector expression.
+	containerName string
+
+	// When output is file or directory.
+	outputPath string
 }
 
 func NewTraceRunnerOptions() *TraceRunnerOptions {
@@ -46,18 +80,27 @@ func NewTraceRunnerCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&o.containerName, "container", "c", o.containerName, "Specify the container")
-	cmd.Flags().StringVarP(&o.podUID, "poduid", "p", o.podUID, "Specify the pod UID")
-	cmd.Flags().StringVarP(&o.programPath, "program", "f", "program.bt", "Specify the bpftrace program path")
-	cmd.Flags().StringVarP(&o.bpftraceBinaryPath, "bpftracebinary", "b", "/bin/bpftrace", "Specify the bpftrace binary path")
-	cmd.Flags().BoolVar(&o.inPod, "inpod", false, "Whether or not run this bpftrace in a pod's container process namespace")
+	cmd.Flags().StringVar(&o.tracer, "tracer", "bpftrace", "Tracing system to use")
+	cmd.Flags().StringVar(&o.target, "target", "node", "What entity will be traced")
+	cmd.Flags().StringVar(&o.output, "output", "stdout", "Where will the tracing system send output")
+	cmd.Flags().StringVar(&o.program, "program", "/programs/program.bt", "Tracer input script or executable")
+	cmd.Flags().StringVar(&o.programArgs, "program-args", o.programArgs, "Arguments to pass through to executable in --program")
+	cmd.Flags().StringVar(&o.containerName, "container", o.containerName, "Specify the container")
+	cmd.Flags().StringVar(&o.podUID, "poduid", o.podUID, "Specify the pod UID")
+	cmd.Flags().StringVar(&o.outputPath, "output-path", o.outputPath, "Location when output is a file or directory")
 	return cmd
 }
 
 func (o *TraceRunnerOptions) Validate(cmd *cobra.Command, args []string) error {
+	switch o.tracer {
+	case bpftrace, bcc:
+	default:
+		tracerNotImplemented(o.tracer)
+	}
+
 	// TODO(fntlnz): do some more meaningful validation here, for now just checking if they are there
-	if o.inPod == true && (len(o.containerName) == 0 || len(o.podUID) == 0) {
-		return fmt.Errorf("poduid and container must be specified when inpod=true")
+	if o.target == "container" && (len(o.containerName) == 0 || len(o.podUID) == 0) {
+		return fmt.Errorf("poduid and container must be specified when target=container")
 	}
 	return nil
 }
@@ -68,27 +111,19 @@ func (o *TraceRunnerOptions) Complete(cmd *cobra.Command, args []string) error {
 }
 
 func (o *TraceRunnerOptions) Run() error {
-	programPath := o.programPath
-	if o.inPod == true {
-		pid, err := findPidByPodContainer(o.podUID, o.containerName)
-		if err != nil {
-			return err
-		}
-		if pid == nil {
-			return fmt.Errorf("pid not found")
-		}
-		if len(*pid) == 0 {
-			return fmt.Errorf("invalid pid found")
-		}
-		f, err := ioutil.ReadFile(programPath)
-		if err != nil {
-			return err
-		}
-		programPath = path.Join(os.TempDir(), "program-container.bt")
-		r := strings.Replace(string(f), "$container_pid", *pid, -1)
-		if err := ioutil.WriteFile(programPath, []byte(r), 0755); err != nil {
-			return err
-		}
+	var err error
+	var binary, args *string
+	switch o.tracer {
+	case bpftrace:
+		binary, args, err = o.prepBpfTraceCommand()
+	case bcc:
+		binary, args, err = o.prepBccCommand()
+	default:
+		return tracerNotImplemented(o.tracer)
+	}
+
+	if err != nil {
+		return err
 	}
 
 	fmt.Println("if your program has maps to print, send a SIGINT using Ctrl-C, if you want to interrupt the execution send SIGINT two times")
@@ -116,11 +151,54 @@ func (o *TraceRunnerOptions) Run() error {
 		}
 	}()
 
-	c := exec.CommandContext(ctx, o.bpftraceBinaryPath, programPath)
+	var c *exec.Cmd
+	if args == nil || len(*args) == 0 {
+		c = exec.CommandContext(ctx, *binary)
+	} else {
+		c = exec.CommandContext(ctx, *binary, *args)
+	}
+
 	c.Stdout = os.Stdout
 	c.Stdin = os.Stdin
 	c.Stderr = os.Stderr
 	return c.Run()
+}
+
+func (o *TraceRunnerOptions) prepBpfTraceCommand() (*string, *string, error) {
+	programPath := o.program
+
+	// Render $container_pid to actual process pid if scoped to container.
+	if o.target == "container" {
+		pid, err := findPidByPodContainer(o.podUID, o.containerName)
+		if err != nil {
+			return nil, nil, err
+		}
+		if pid == nil {
+			return nil, nil, fmt.Errorf("pid not found")
+		}
+		if len(*pid) == 0 {
+			return nil, nil, fmt.Errorf("invalid pid found")
+		}
+		f, err := ioutil.ReadFile(programPath)
+		if err != nil {
+			return nil, nil, err
+		}
+		programPath = path.Join(os.TempDir(), "program-container.bt")
+		r := strings.Replace(string(f), "$container_pid", *pid, -1)
+		if err := ioutil.WriteFile(programPath, []byte(r), 0755); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return &bpfTraceBinaryPath, &programPath, nil
+}
+
+func (o *TraceRunnerOptions) prepBccCommand() (*string, *string, error) {
+	return nil, nil, tracerNotImplemented(o.tracer)
+}
+
+func tracerNotImplemented(tracer string) error {
+	return fmt.Errorf("--tracer=%s not implemented", tracer)
 }
 
 func findPidByPodContainer(podUID, containerName string) (*string, error) {

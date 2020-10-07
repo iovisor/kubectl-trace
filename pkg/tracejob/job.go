@@ -186,20 +186,24 @@ func (t *TraceJobClient) DeleteJobs(nf TraceJobFilter) error {
 
 func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 
-	bpfTraceCmd := []string{
+	traceCmd := []string{
 		"/bin/timeout",
 		"--preserve-status",
 		"--signal",
 		"INT",
 		strconv.FormatInt(nj.Deadline, 10),
 		"/bin/trace-runner",
+		"--tracer=bpftrace",
+		"--output=stdout",
 		"--program=/programs/program.bt",
 	}
 
 	if nj.IsPod {
-		bpfTraceCmd = append(bpfTraceCmd, "--inpod")
-		bpfTraceCmd = append(bpfTraceCmd, "--container="+nj.ContainerName)
-		bpfTraceCmd = append(bpfTraceCmd, "--poduid="+nj.PodUID)
+		traceCmd = append(traceCmd, "--target=container")
+		traceCmd = append(traceCmd, "--container="+nj.ContainerName)
+		traceCmd = append(traceCmd, "--poduid="+nj.PodUID)
+	} else {
+		traceCmd = append(traceCmd, "--target=host")
 	}
 
 	commonMeta := metav1.ObjectMeta{
@@ -275,7 +279,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 						apiv1.Container{
 							Name:    nj.Name,
 							Image:   nj.ImageNameTag,
-							Command: bpfTraceCmd,
+							Command: traceCmd,
 							TTY:     true,
 							Stdin:   true,
 							Resources: apiv1.ResourceRequirements{
