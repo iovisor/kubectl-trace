@@ -29,10 +29,13 @@ type TraceJob struct {
 	Namespace           string
 	ServiceAccount      string
 	Hostname            string
+	Tracer              string
+	Target              string
+	Output              string
 	Program             string
 	PodUID              string
 	ContainerName       string
-	IsPod               bool
+	OutputPath          string
 	ImageNameTag        string
 	InitImageNameTag    string
 	FetchHeaders        bool
@@ -193,17 +196,20 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 		"INT",
 		strconv.FormatInt(nj.Deadline, 10),
 		"/bin/trace-runner",
-		"--tracer=bpftrace",
-		"--output=stdout",
-		"--program=/programs/program.bt",
+		"--tracer=" + nj.Tracer,
+		"--target=" + nj.Target,
+		"--output=" + nj.Output,
 	}
 
-	if nj.IsPod {
-		traceCmd = append(traceCmd, "--target=container")
+	if nj.Tracer == "bpftrace" {
+		traceCmd = append(traceCmd, "--program=/programs/program.bt")
+	} else {
+		traceCmd = append(traceCmd, "--program="+nj.Program)
+	}
+
+	if nj.Target == "container" {
 		traceCmd = append(traceCmd, "--container="+nj.ContainerName)
 		traceCmd = append(traceCmd, "--poduid="+nj.PodUID)
-	} else {
-		traceCmd = append(traceCmd, "--target=host")
 	}
 
 	commonMeta := metav1.ObjectMeta{

@@ -71,9 +71,11 @@ type RunOptions struct {
 	explicitNamespace bool
 
 	// Flags local to this command
-	container           string
+	tracer              string
+	output              string
 	eval                string
 	program             string
+	container           string
 	serviceAccount      string
 	imageName           string
 	initImageName       string
@@ -128,10 +130,13 @@ func NewRunCommand(factory factory.Factory, streams genericclioptions.IOStreams)
 		},
 	}
 
+	cmd.Flags().StringVar(&o.tracer, "tracer", "bpftrace", "Tracing system to use")
+	cmd.Flags().StringVar(&o.output, "output", "stdout", "Where will tracing system send output")
 	cmd.Flags().StringVarP(&o.container, "container", "c", o.container, "Specify the container")
 	cmd.Flags().BoolVarP(&o.attach, "attach", "a", o.attach, "Whether or not to attach to the trace program once it is created")
 	cmd.Flags().StringVarP(&o.eval, "eval", "e", o.eval, "Literal string to be evaluated as a bpftrace program")
 	cmd.Flags().StringVarP(&o.program, "filename", "f", o.program, "File containing a bpftrace program")
+	cmd.Flags().StringVar(&o.program, "program", o.program, "Program to execute")
 	cmd.Flags().StringVar(&o.serviceAccount, "serviceaccount", o.serviceAccount, "Service account to use to set in the pod spec of the kubectl-trace job")
 	cmd.Flags().StringVar(&o.imageName, "imagename", o.imageName, "Custom image for the tracerunner")
 	cmd.Flags().StringVar(&o.initImageName, "init-imagename", o.initImageName, "Custom image for the init container responsible to fetch and prepare linux headers")
@@ -161,13 +166,16 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(requiredArgErrString)
 	}
 
-	if !cmd.Flag("eval").Changed && !cmd.Flag("filename").Changed {
+	if cmd.Flag("filename").Changed && cmd.Flag("program").Changed {
+		return fmt.Errorf("Cannot use both --filename and --program together")
+	}
+	if !cmd.Flag("eval").Changed && !cmd.Flag("filename").Changed && !cmd.Flag("program").Changed {
 		return fmt.Errorf(bpftraceMissingErrString)
 	}
-	if cmd.Flag("eval").Changed == cmd.Flag("filename").Changed {
+	if (cmd.Flag("eval").Changed == true && cmd.Flag("filename").Changed == true) || (cmd.Flag("eval").Changed == true && cmd.Flag("program").Changed == true) {
 		return fmt.Errorf(bpftraceDoubleErrString)
 	}
-	if (cmd.Flag("eval").Changed && len(o.eval) == 0) || (cmd.Flag("filename").Changed && len(o.program) == 0) {
+	if (cmd.Flag("eval").Changed && len(o.eval) == 0) || (cmd.Flag("filename").Changed && len(o.program) == 0) || (cmd.Flag("program").Changed && len(o.program) == 0) {
 		return fmt.Errorf(bpftraceEmptyErrString)
 	}
 
@@ -177,14 +185,16 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 // Complete completes the setup of the command.
 func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
 	// Prepare program
-	if len(o.program) > 0 {
-		b, err := ioutil.ReadFile(o.program)
-		if err != nil {
-			return fmt.Errorf("error opening program file")
+	if o.tracer == "bpftrace" {
+		if len(o.program) > 0 {
+			b, err := ioutil.ReadFile(o.program)
+			if err != nil {
+				return fmt.Errorf("error opening program file")
+			}
+			o.program = string(b)
+		} else {
+			o.program = o.eval
 		}
-		o.program = string(b)
-	} else {
-		o.program = o.eval
 	}
 
 	// Prepare namespace
@@ -299,16 +309,23 @@ func (o *RunOptions) Run() error {
 		ConfigClient: coreClient.ConfigMaps(o.namespace),
 	}
 
+	target := "host"
+	if o.isPod {
+		target = "container"
+	}
+
 	tj := tracejob.TraceJob{
 		Name:                fmt.Sprintf("%s%s", meta.ObjectNamePrefix, string(juid)),
 		Namespace:           o.namespace,
 		ServiceAccount:      o.serviceAccount,
 		ID:                  juid,
+		Tracer:              o.tracer,
+		Target:              target,
+		Output:              o.output,
 		Hostname:            o.nodeName,
 		Program:             o.program,
 		PodUID:              o.podUID,
 		ContainerName:       o.container,
-		IsPod:               o.isPod,
 		ImageNameTag:        o.imageName,
 		InitImageNameTag:    o.initImageName,
 		FetchHeaders:        o.fetchHeaders,
