@@ -194,7 +194,7 @@ func (o *TraceRunnerOptions) prepBpfTraceCommand() (*string, *string, error) {
 }
 
 func (o *TraceRunnerOptions) prepBccCommand() (*string, *string, error) {
-	return nil, nil, tracerNotImplemented(o.tracer)
+	return &o.program, nil, nil
 }
 
 func tracerNotImplemented(tracer string) error {
