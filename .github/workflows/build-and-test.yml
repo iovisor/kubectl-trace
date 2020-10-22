@@ -1,0 +1,39 @@
+name: Kubectl trace build and tests
+
+on: [push, pull_request]
+
+jobs:
+  test_bcc:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-16.04, ubuntu-18.04] # 16.04.4 release has 4.15 kernel
+                                         # 18.04.3 release has 5.0.0 kernel
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run tests
+      env: ${{ matrix.env }}
+      run: |
+        make test
+    - name: Build kubectl trace binary
+      env: ${{ matrix.env }}
+      run: |
+        make _output/bin/kubectl-trace
+    - name: Build CI image
+      env: ${{ matrix.nv }}
+      run: |
+       ./hack/ci-build-image.sh
+    - name: Run integration tests
+      env: ${{ matrix.env }}
+      run: |
+        make integration
+    - name: Build cross binaries
+      env: ${{ matrix.env }}
+      run: |
+        curl -LO https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_amd64.deb && sudo dpkg -i goreleaser_amd64.deb
+        make cross
+    - name: Upload docker image
+      env: ${{ matrix.env }}
+      if: {{ github.ref == 'ref/head/master' }}
+      run: |
+        ./hack/ci-release-image.sh
