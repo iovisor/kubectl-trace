@@ -12,28 +12,22 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Run tests
-      env: ${{ matrix.env }}
       run: |
         make test
     - name: Build kubectl trace binary
-      env: ${{ matrix.env }}
       run: |
         make _output/bin/kubectl-trace
     - name: Build CI image
-      env: ${{ matrix.nv }}
       run: |
        ./hack/ci-build-image.sh
     - name: Run integration tests
-      env: ${{ matrix.env }}
       run: |
         make integration
     - name: Build cross binaries
-      env: ${{ matrix.env }}
       run: |
         curl -LO https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_amd64.deb && sudo dpkg -i goreleaser_amd64.deb
         make cross
     - name: Upload docker image
-      env: ${{ matrix.env }}
       if: >
         github.ref == 'ref/head/master'
       run: |
