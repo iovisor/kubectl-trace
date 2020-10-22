@@ -3,7 +3,7 @@ name: Kubectl trace build and tests
 on: [push, pull_request]
 
 jobs:
-  test_bcc:
+  build_and_test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
