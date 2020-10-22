@@ -34,6 +34,7 @@ jobs:
         make cross
     - name: Upload docker image
       env: ${{ matrix.env }}
-      if: {{ github.ref == 'ref/head/master' }}
+      if: >
+        github.ref == 'ref/head/master'
       run: |
         ./hack/ci-release-image.sh
