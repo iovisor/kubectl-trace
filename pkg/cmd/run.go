@@ -22,9 +22,9 @@ import (
 
 var (
 	// ImageNameTag represents the default tracerunner image
-	ImageNameTag = "quay.io/iovisor/kubectl-trace-bpftrace:latest"
+	ImageNameTag = "quay.io/iovisor/kubectl-trace-bpftrace:93902512c7d983338aee08dd8d3712dcbf259b3a"
 	// InitImageNameTag represents the default init container image
-	InitImageNameTag = "quay.io/iovisor/kubectl-trace-init:latest"
+	InitImageNameTag = "quay.io/iovisor/kubectl-trace-init:93902512c7d983338aee08dd8d3712dcbf259b3a"
 	// DefaultDeadline is the maximum time a tracejob is allowed to run, in seconds
 	DefaultDeadline = 3600
 	// DefaultDeadlineGracePeriod is the maximum time to wait to print a map or histogram, in seconds
