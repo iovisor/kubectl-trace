@@ -1,4 +1,4 @@
-ARG bpftraceversion=v0.9.4
+ARG bpftraceversion=v0.11.1
 FROM quay.io/iovisor/bpftrace:$bpftraceversion as bpftrace
 
 FROM golang:1.11.4-stretch as gobuilder
@@ -11,7 +11,7 @@ WORKDIR /go/src/github.com/iovisor/kubectl-trace
 
 RUN make _output/bin/trace-runner
 
-FROM ubuntu:19.10
+FROM ubuntu:20.04
 
 RUN apt-get update
 RUN apt-get install -y xz-utils
