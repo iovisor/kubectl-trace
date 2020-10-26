@@ -17,10 +17,13 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.15
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
-        with:
-          version: latest
-          args: release --rm-dist
+      - name: Install goreleaser
+        run: |
+          curl -LO https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_amd64.deb && \
+          sudo dpkg -i goreleaser_amd64.deb && \
+          rm goreleaser_amd64.deb
+      - name: Create release
+        run: |
+          make release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
