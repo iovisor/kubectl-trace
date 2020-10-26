@@ -11,32 +11,59 @@ jobs:
                                          # 18.04.3 release has 5.0.0 kernel
     steps:
     - uses: actions/checkout@v2
+    - run: git fetch --prune --unshallow # We want tags
+
+    - name: Initialize workflow variables
+      id: vars
+      shell: bash
+      run: |
+          if [ -n "${QUAY_TOKEN}" ];then
+            echo "Quay token is set, will push an image"
+            echo ::set-output name=QUAY_PUBLISH::true
+          else
+            echo "Quay token not set, skipping image push"
+          fi
+
+          git_org=$(dirname ${{ github.repository }})
+          echo GIT_ORG=${git_org} >> $GITHUB_ENV
+      env:
+        QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
+
     - name: Run tests
       run: |
         make test
+
     - name: Build kubectl trace binary
       run: |
         make _output/bin/kubectl-trace
+
     - name: Build CI image
       run: |
-       ./hack/ci-build-image.sh
+       ./build/scripts/ci-build-image.sh ${{ github.ref }}
+
     - name: Run integration tests
       run: |
         make integration
+
     - name: Build cross binaries
       run: |
         curl -LO https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_amd64.deb && sudo dpkg -i goreleaser_amd64.deb
         make cross
+
     - uses: actions/upload-artifact@v1
       with:
         name: ${{ matrix.os }}-kubectl-trace-dist
         path: _output/bin/kubectl-trace
+
     - uses: actions/upload-artifact@v1
       with:
         name: ${{ matrix.os }}-kubectl-trace-cross-dist
         path: dist
+
     - name: Upload docker image
       if: >
-        github.ref == 'ref/head/master'
+        steps.vars.outputs.QUAY_PUBLISH
+      env:
+        QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
       run: |
-        ./hack/ci-release-image.sh
+        ./build/scripts/ci-release-image.sh ${{ github.ref }}
