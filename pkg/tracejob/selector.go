@@ -19,6 +19,11 @@ func NewSelector(query string) (*Selector, error) {
 		terms: map[string]string{},
 	}
 
+	query = strings.TrimSpace(query)
+	if len(query) == 0 {
+		return s, nil
+	}
+
 	terms := strings.Split(query, ",")
 	for _, t := range terms {
 		seg := strings.Split(t, "=")

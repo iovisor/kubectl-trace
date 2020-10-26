@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -12,6 +13,7 @@ import (
 	"syscall"
 
 	"github.com/fntlnz/mountinfo"
+	"github.com/iovisor/kubectl-trace/pkg/tracejob"
 	"github.com/spf13/cobra"
 )
 
@@ -53,6 +55,9 @@ type TraceRunnerOptions struct {
 	// In the case of bcc the user provided arguments to pass on to program.
 	// Not used for bpftrace.
 	programArgs string
+
+	// Values populated after validation
+	parsedSelector *tracejob.Selector
 }
 
 func NewTraceRunnerOptions() *TraceRunnerOptions {
@@ -98,7 +103,18 @@ func (o *TraceRunnerOptions) Validate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("unknown output %s", o.output)
 	}
 
-	// TODO(zqureshi): parse and validate selector.
+	parsed, err := tracejob.NewSelector(o.selector)
+	if err != nil {
+		return fmt.Errorf(err.Error())
+	}
+	o.parsedSelector = parsed
+
+	_, podOk := parsed.PodUID()
+	_, containerOk := parsed.Container()
+	if podOk != containerOk {
+		return fmt.Errorf("selector must specify both podUID and container")
+	}
+
 	return nil
 }
 
@@ -164,29 +180,30 @@ func (o *TraceRunnerOptions) Run() error {
 func (o *TraceRunnerOptions) prepBpfTraceCommand() (*string, *string, error) {
 	programPath := o.program
 
-	// TODO(zqureshi): Filter using selector.
 	// Render $container_pid to actual process pid if scoped to container.
-	// if o.target == "container" {
-	// 	pid, err := findPidByPodContainer(o.podUID, o.containerName)
-	// 	if err != nil {
-	// 		return nil, nil, err
-	// 	}
-	// 	if pid == nil {
-	// 		return nil, nil, fmt.Errorf("pid not found")
-	// 	}
-	// 	if len(*pid) == 0 {
-	// 		return nil, nil, fmt.Errorf("invalid pid found")
-	// 	}
-	// 	f, err := ioutil.ReadFile(programPath)
-	// 	if err != nil {
-	// 		return nil, nil, err
-	// 	}
-	// 	programPath = path.Join(os.TempDir(), "program-container.bt")
-	// 	r := strings.Replace(string(f), "$container_pid", *pid, -1)
-	// 	if err := ioutil.WriteFile(programPath, []byte(r), 0755); err != nil {
-	// 		return nil, nil, err
-	// 	}
-	// }
+	podUID, _ := o.parsedSelector.PodUID()
+	container, ok := o.parsedSelector.Container()
+	if ok {
+		pid, err := findPidByPodContainer(podUID, container)
+		if err != nil {
+			return nil, nil, err
+		}
+		if pid == nil {
+			return nil, nil, fmt.Errorf("pid not found")
+		}
+		if len(*pid) == 0 {
+			return nil, nil, fmt.Errorf("invalid pid found")
+		}
+		f, err := ioutil.ReadFile(programPath)
+		if err != nil {
+			return nil, nil, err
+		}
+		programPath = path.Join(os.TempDir(), "program-container.bt")
+		r := strings.Replace(string(f), "$container_pid", *pid, -1)
+		if err := ioutil.WriteFile(programPath, []byte(r), 0755); err != nil {
+			return nil, nil, err
+		}
+	}
 
 	return &bpfTraceBinaryPath, &programPath, nil
 }

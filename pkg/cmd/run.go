@@ -86,10 +86,11 @@ type RunOptions struct {
 
 	// Flags for generic interface
 	// See TraceRunnerOptions for definitions.
-	tracer        string
-	selector      string
-	program       string
-	tracerDefined bool
+	tracer         string
+	selector       string
+	program        string
+	tracerDefined  bool
+	parsedSelector *tracejob.Selector
 
 	serviceAccount      string
 	imageName           string
@@ -100,9 +101,6 @@ type RunOptions struct {
 
 	resourceArg string
 	attach      bool
-	isPod       bool
-	podUID      string
-	nodeName    string
 
 	clientConfig *rest.Config
 }
@@ -181,6 +179,12 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(tracerNotFound, o.tracer)
 	}
 
+	parsed, err := tracejob.NewSelector(o.selector)
+	if err != nil {
+		return fmt.Errorf(err.Error())
+	}
+	o.parsedSelector = parsed
+
 	// All filtering must be via selector if tracer is specified.
 	containerFlagDefined := cmd.Flag("container").Changed
 	if o.tracerDefined && containerFlagDefined {
@@ -208,9 +212,14 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		// Using tracer so pull resources from selector.
-		// TODO(zqureshi): Parse and validate selector.
-		if len(o.selector) > 0 {
-			o.resourceArg = o.selector
+		if node, ok := o.parsedSelector.Node(); ok {
+			o.resourceArg = "node/" + node
+		}
+		if pod, ok := o.parsedSelector.Pod(); ok {
+			o.resourceArg = "pod/" + pod
+		}
+		if container, ok := o.parsedSelector.Container(); ok {
+			o.container = container
 		}
 	}
 
@@ -264,9 +273,6 @@ func (o *RunOptions) Complete(factory cmdutil.Factory, cmd *cobra.Command, args 
 		return err
 	}
 
-	// Check we got a pod or a node
-	o.isPod = false
-
 	var node *v1.Node
 
 	switch v := obj.(type) {
@@ -274,13 +280,12 @@ func (o *RunOptions) Complete(factory cmdutil.Factory, cmd *cobra.Command, args 
 		if len(v.Spec.NodeName) == 0 {
 			return fmt.Errorf("cannot attach a trace program to a pod that is not currently scheduled on a node")
 		}
-		o.isPod = true
 		found := false
-		o.podUID = string(v.UID)
+		o.parsedSelector.Set("pod-uid", string(v.UID))
 		for _, c := range v.Spec.Containers {
 			// default if no container provided
 			if len(o.container) == 0 {
-				o.container = c.Name
+				o.parsedSelector.Set("container", c.Name)
 				found = true
 				break
 			}
@@ -326,7 +331,7 @@ func (o *RunOptions) Complete(factory cmdutil.Factory, cmd *cobra.Command, args 
 	if !ok {
 		return fmt.Errorf("label kubernetes.io/hostname not found in node")
 	}
-	o.nodeName = val
+	o.parsedSelector.Set("node", val)
 
 	// Prepare client
 	o.clientConfig, err = factory.ToRESTConfig()
@@ -355,14 +360,16 @@ func (o *RunOptions) Run() error {
 		ConfigClient: coreClient.ConfigMaps(o.namespace),
 	}
 
+	node, _ := o.parsedSelector.Node()
+
 	tj := tracejob.TraceJob{
 		Name:                fmt.Sprintf("%s%s", meta.ObjectNamePrefix, string(juid)),
 		Namespace:           o.namespace,
 		ServiceAccount:      o.serviceAccount,
 		ID:                  juid,
-		Hostname:            o.nodeName,
+		Hostname:            node,
 		Tracer:              o.tracer,
-		Selector:            o.selector,
+		Selector:            o.parsedSelector.String(),
 		Output:              "stdout",
 		Program:             o.program,
 		ImageNameTag:        o.imageName,
