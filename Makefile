@@ -5,17 +5,22 @@ DOCKER ?= docker
 
 COMMIT_NO := $(shell git rev-parse HEAD 2> /dev/null || true)
 GIT_COMMIT := $(if $(shell git status --porcelain --untracked-files=no),${COMMIT_NO}-dirty,${COMMIT_NO})
+GIT_TAG    ?= $(shell git describe 2> /dev/null)
 GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
 
-IMAGE_NAME_INIT ?= quay.io/iovisor/kubectl-trace-init
-IMAGE_NAME ?= quay.io/iovisor/kubectl-trace-bpftrace
+GIT_ORG ?= iovisor
+
+IMAGE_NAME_INIT ?= quay.io/$(GIT_ORG)/kubectl-trace-init
+IMAGE_NAME ?= quay.io/$(GIT_ORG)/kubectl-trace-bpftrace
 
 IMAGE_TRACERUNNER_BRANCH := $(IMAGE_NAME):$(GIT_BRANCH_CLEAN)
 IMAGE_TRACERUNNER_COMMIT := $(IMAGE_NAME):$(GIT_COMMIT)
+IMAGE_TRACERUNNER_TAG    := $(IMAGE_NAME):$(GIT_TAG)
 
 IMAGE_INITCONTAINER_BRANCH := $(IMAGE_NAME_INIT):$(GIT_BRANCH_CLEAN)
 IMAGE_INITCONTAINER_COMMIT := $(IMAGE_NAME_INIT):$(GIT_COMMIT)
+IMAGE_INITCONTAINER_TAG    := $(IMAGE_NAME_INIT):$(GIT_TAG)
 IMAGE_INITCONTAINER_LATEST := $(IMAGE_NAME_INIT):latest
 
 IMAGE_BUILD_FLAGS ?= "--no-cache"
@@ -57,24 +62,29 @@ image/build-init:
 		-t $(IMAGE_INITCONTAINER_BRANCH) \
 		-f ./build/Dockerfile.initcontainer ./build
 	$(DOCKER) tag $(IMAGE_INITCONTAINER_BRANCH) $(IMAGE_INITCONTAINER_COMMIT)
+	$(DOCKER) tag $(IMAGE_INITCONTAINER_BRANCH) $(IMAGE_INITCONTAINER_TAG)
 
 .PHONY: image/build
 image/build:
 	$(DOCKER) build \
 		--build-arg bpftraceversion=$(BPFTRACEVERSION) \
+		--build-arg GIT_ORG=$(GIT_ORG) \
 		$(IMAGE_BUILD_FLAGS) \
 		-t "$(IMAGE_TRACERUNNER_BRANCH)" \
 		-f build/Dockerfile.tracerunner .
 	$(DOCKER) tag $(IMAGE_TRACERUNNER_BRANCH) $(IMAGE_TRACERUNNER_COMMIT)
 	$(DOCKER) tag "$(IMAGE_TRACERUNNER_BRANCH)" $(IMAGE_TRACERUNNER_BRANCH)
+	$(DOCKER) tag "$(IMAGE_TRACERUNNER_BRANCH)" $(IMAGE_TRACERUNNER_TAG)
 
 
 .PHONY: image/push
 image/push:
 	$(DOCKER) push $(IMAGE_TRACERUNNER_BRANCH)
 	$(DOCKER) push $(IMAGE_TRACERUNNER_COMMIT)
+	$(DOCKER) push $(IMAGE_TRACERUNNER_TAG)
 	$(DOCKER) push $(IMAGE_INITCONTAINER_BRANCH)
 	$(DOCKER) push $(IMAGE_INITCONTAINER_COMMIT)
+	$(DOCKER) push $(IMAGE_INITCONTAINER_TAG)
 
 .PHONY: image/latest
 image/latest:

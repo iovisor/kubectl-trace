@@ -12,17 +12,19 @@ When we release we do the following process:
 
 ## Release commands
 
-Tag the version
+Tag the version:
 
 ```bash
 git tag -a v0.1.0-rc.0 -m "v0.1.0-rc.0"
 git push origin v0.1.0-rc.0
 ```
 
-Run goreleaser, make sure to export your GitHub token first.
+From there, github actions should automatically create the release, as it sets
+the `GITHUB_TOKEN`.
+
+In case you need to run a release manually, so long as you are an administrator:
 
 ```
 export GITHUB_TOKEN=<YOUR_GH_TOKEN>
 make release
 ```
-
