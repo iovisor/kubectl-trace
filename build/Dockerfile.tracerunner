@@ -1,7 +1,7 @@
 ARG bpftraceversion=v0.11.1
 FROM quay.io/iovisor/bpftrace:$bpftraceversion as bpftrace
 
-FROM golang:1.11.4-stretch as gobuilder
+FROM golang:1.15-buster as gobuilder
 
 RUN apt-get update
 RUN apt-get install -y make bash git
