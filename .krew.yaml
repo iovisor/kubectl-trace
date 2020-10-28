@@ -1,0 +1,48 @@
+apiVersion: krew.googlecontainertools.github.com/v1alpha2
+kind: Plugin
+metadata:
+  name: trace
+spec:
+  version: {{ .TagName }}
+  homepage: https://github.com/iovisor/kubectl-trace
+  platforms:
+  - selector:
+      matchLabels:
+        os: darwin
+        arch: amd64
+    {{addURIAndSha "https://github.com/iovisor/kubectl-trace/releases/download/{{ .TagName }}/kubectl-trace_{{ .TagName }}_darwin_amd64.tar.gz" .TagName }}
+    bin: kubectl-trace
+  - selector:
+      matchLabels:
+        os: darwin
+        arch: 386
+    {{addURIAndSha "https://github.com/iovisor/kubectl-trace/releases/download/{{ .TagName }}/kubectl-trace_{{ .TagName }}_darwin_386.tar.gz" .TagName }}
+    bin: kubectl-trace
+  - selector:
+      matchLabels:
+        os: linux
+        arch: amd64
+    {{addURIAndSha "https://github.com/iovisor/kubectl-trace/releases/download/{{ .TagName }}/kubectl-trace_{{ .TagName }}_linux_amd64.tar.gz" .TagName }}
+    bin: kubectl-trace
+  - selector:
+      matchLabels:
+        os: linux
+        arch: 386
+    {{addURIAndSha "https://github.com/iovisor/kubectl-trace/releases/download/{{ .TagName }}/kubectl-trace_{{ .TagName }}_linux_386.tar.gz" .TagName }}
+    bin: kubectl-trace
+  - selector:
+      matchLabels:
+        os: windows
+        arch: amd64
+    {{addURIAndSha "https://github.com/iovisor/kubectl-trace/releases/download/{{ .TagName }}/kubectl-trace_{{ .TagName }}_windows_amd64.tar.gz" .TagName }}
+    bin: kubectl-trace.exe
+  - selector:
+      matchLabels:
+        os: windows
+        arch: amd64
+    {{addURIAndSha "https://github.com/iovisor/kubectl-trace/releases/download/{{ .TagName }}/kubectl-trace_{{ .TagName }}_windows_386.tar.gz" .TagName }}
+    bin: kubectl-trace.exe
+  shortDescription: Trace Kubernetes pods and nodes with system tools
+  description: |
+    Usage:
+      Read more documentation at: https://github.com/iovisor/kubectl-trace
