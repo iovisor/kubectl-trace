@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright 2019 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,6 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package nodes contains functionality for Kubernetes-in-Docker nodes
-// It mostly exists to break up functionality from sigs.k8s.io/kind/pkg/cluster
+// Package nodes provides a kind specific definition of a cluster node
 package nodes
