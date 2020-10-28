@@ -22,6 +22,7 @@ require (
 	github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 	github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c // indirect
 	github.com/google/go-cmp v0.2.0 // indirect
+	github.com/gophercloud/gophercloud v0.13.0 // indirect
 	github.com/gregjones/httpcache v0.0.0-20181110185634-c63ab54fda8f // indirect
 	github.com/imdario/mergo v0.3.6 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
