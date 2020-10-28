@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	tcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/kubernetes/pkg/kubectl/util/term"
+	"k8s.io/kubectl/pkg/util/term"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,7 +58,7 @@ func (a *Attacher) Attach(selector, namespace string) {
 		Jitter:   0.0,
 		Steps:    100,
 	}, func() (bool, error) {
-		pl, err := a.CoreV1Client.Pods(namespace).List(metav1.ListOptions{
+		pl, err := a.CoreV1Client.Pods(namespace).List(context.Background(), metav1.ListOptions{
 			LabelSelector: selector,
 		})
 

@@ -1,6 +1,7 @@
 package tracejob
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -86,7 +87,7 @@ func (t *TraceJobClient) findJobsWithFilter(nf TraceJobFilter) ([]batchv1.Job, e
 		return []batchv1.Job{}, nil
 	}
 
-	jl, err := t.JobClient.List(selectorOptions)
+	jl, err := t.JobClient.List(context.Background(), selectorOptions)
 
 	if err != nil {
 		return nil, err
@@ -100,7 +101,7 @@ func (t *TraceJobClient) findConfigMapsWithFilter(nf TraceJobFilter) ([]apiv1.Co
 		return []apiv1.ConfigMap{}, nil
 	}
 
-	cm, err := t.ConfigClient.List(selectorOptions)
+	cm, err := t.ConfigClient.List(context.Background(), selectorOptions)
 
 	if err != nil {
 		return nil, err
@@ -152,7 +153,7 @@ func (t *TraceJobClient) DeleteJobs(nf TraceJobFilter) error {
 
 	dp := metav1.DeletePropagationForeground
 	for _, j := range jl {
-		err := t.JobClient.Delete(j.Name, &metav1.DeleteOptions{
+		err := t.JobClient.Delete(context.Background(), j.Name, metav1.DeleteOptions{
 			GracePeriodSeconds: int64Ptr(0),
 			PropagationPolicy:  &dp,
 		})
@@ -170,7 +171,7 @@ func (t *TraceJobClient) DeleteJobs(nf TraceJobFilter) error {
 	}
 
 	for _, c := range cl {
-		err := t.ConfigClient.Delete(c.Name, nil)
+		err := t.ConfigClient.Delete(context.Background(), c.Name, metav1.DeleteOptions{})
 		if err != nil {
 			return err
 		}
@@ -469,10 +470,10 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 				ReadOnly:  true,
 			})
 	}
-	if _, err := t.ConfigClient.Create(cm); err != nil {
+	if _, err := t.ConfigClient.Create(context.Background(), cm, metav1.CreateOptions{}); err != nil {
 		return nil, err
 	}
-	return t.JobClient.Create(job)
+	return t.JobClient.Create(context.Background(), job, metav1.CreateOptions{})
 }
 
 func int32Ptr(i int32) *int32 { return &i }

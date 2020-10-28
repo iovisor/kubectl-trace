@@ -1,6 +1,8 @@
 package logs
 
 import (
+	"context"
+
 	"github.com/iovisor/kubectl-trace/pkg/meta"
 	tcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
@@ -34,7 +36,7 @@ const (
 )
 
 func (l *Logs) Run(jobID types.UID, namespace string, follow bool, timestamps bool) error {
-	pl, err := l.coreV1Client.Pods(namespace).List(metav1.ListOptions{
+	pl, err := l.coreV1Client.Pods(namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", meta.TraceIDLabelKey, jobID),
 	})
 
@@ -70,7 +72,7 @@ func (l *Logs) Run(jobID types.UID, namespace string, follow bool, timestamps bo
 }
 
 func consumeRequest(request *rest.Request, out io.Writer) error {
-	readCloser, err := request.Stream()
+	readCloser, err := request.Stream(context.Background())
 	if err != nil {
 		return err
 	}
