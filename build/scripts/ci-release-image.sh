@@ -23,9 +23,9 @@ fi
 
 if [[ -n "$QUAY_TOKEN" ]]; then
   $docker login -u="${GIT_ORG}+${QUAY_BOT_USER}" -p="$QUAY_TOKEN" quay.io
-  $make "$makeopts" image/push
+  $make $makeopts image/push
 
   if [[ "${git_base_ref}" = "master" ]]; then
-    $make "$makeopts" image/latest
+    $make $makeopts image/latest
   fi
 fi
