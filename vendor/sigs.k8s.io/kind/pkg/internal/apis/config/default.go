@@ -21,17 +21,17 @@ limitations under the License.
 package config
 
 import (
-	"k8s.io/apimachinery/pkg/runtime"
-
 	"sigs.k8s.io/kind/pkg/apis/config/defaults"
+	"sigs.k8s.io/kind/pkg/cluster/constants"
 )
 
-func addDefaultingFuncs(scheme *runtime.Scheme) error {
-	return RegisterDefaults(scheme)
-}
+// SetDefaultsCluster sets uninitialized fields to their default value.
+func SetDefaultsCluster(obj *Cluster) {
+	// default cluster name
+	if obj.Name == "" {
+		obj.Name = constants.DefaultClusterName
+	}
 
-// SetDefaults_Cluster sets uninitialized fields to their default value.
-func SetDefaults_Cluster(obj *Cluster) {
 	// default to a one node cluster
 	if len(obj.Nodes) == 0 {
 		obj.Nodes = []Node{
@@ -41,9 +41,16 @@ func SetDefaults_Cluster(obj *Cluster) {
 			},
 		}
 	}
+
+	// default nodes
+	for i := range obj.Nodes {
+		a := &obj.Nodes[i]
+		SetDefaultsNode(a)
+	}
 	if obj.Networking.IPFamily == "" {
 		obj.Networking.IPFamily = "ipv4"
 	}
+
 	// default to listening on 127.0.0.1:randomPort on ipv4
 	// and [::1]:randomPort on ipv6
 	if obj.Networking.APIServerAddress == "" {
@@ -52,6 +59,7 @@ func SetDefaults_Cluster(obj *Cluster) {
 			obj.Networking.APIServerAddress = "::1"
 		}
 	}
+
 	// default the pod CIDR
 	if obj.Networking.PodSubnet == "" {
 		obj.Networking.PodSubnet = "10.244.0.0/16"
@@ -59,6 +67,7 @@ func SetDefaults_Cluster(obj *Cluster) {
 			obj.Networking.PodSubnet = "fd00:10:244::/64"
 		}
 	}
+
 	// default the service CIDR using the kubeadm default
 	// https://github.com/kubernetes/kubernetes/blob/746404f82a28e55e0b76ffa7e40306fb88eb3317/cmd/kubeadm/app/apis/kubeadm/v1beta2/defaults.go#L32
 	// Note: kubeadm is doing it already but this simplifies kind's logic
@@ -68,10 +77,14 @@ func SetDefaults_Cluster(obj *Cluster) {
 			obj.Networking.ServiceSubnet = "fd00:10:96::/112"
 		}
 	}
+	// default the KubeProxyMode using iptables as it's already the default
+	if obj.Networking.KubeProxyMode == "" {
+		obj.Networking.KubeProxyMode = IPTablesMode
+	}
 }
 
-// SetDefaults_Node sets uninitialized fields to their default value.
-func SetDefaults_Node(obj *Node) {
+// SetDefaultsNode sets uninitialized fields to their default value.
+func SetDefaultsNode(obj *Node) {
 	if obj.Image == "" {
 		obj.Image = defaults.Image
 	}

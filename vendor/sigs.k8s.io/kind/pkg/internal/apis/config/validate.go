@@ -19,9 +19,7 @@ package config
 import (
 	"net"
 
-	"github.com/pkg/errors"
-
-	"sigs.k8s.io/kind/pkg/util"
+	"sigs.k8s.io/kind/pkg/errors"
 )
 
 // Validate returns a ConfigErrors with an entry for each problem
@@ -47,6 +45,11 @@ func (c *Cluster) Validate() error {
 		errs = append(errs, errors.Wrapf(err, "invalid serviceSubnet"))
 	}
 
+	// KubeProxyMode should be iptables or ipvs
+	if c.Networking.KubeProxyMode != IPTablesMode && c.Networking.KubeProxyMode != IPVSMode {
+		errs = append(errs, errors.Errorf("invalid kubeProxyMode: %s", c.Networking.KubeProxyMode))
+	}
+
 	// validate nodes
 	numByRole := make(map[NodeRole]int32)
 	// All nodes in the config should be valid
@@ -70,7 +73,7 @@ func (c *Cluster) Validate() error {
 	}
 
 	if len(errs) > 0 {
-		return util.NewErrors(errs)
+		return errors.NewAggregate(errs)
 	}
 	return nil
 }
@@ -104,14 +107,16 @@ func (n *Node) Validate() error {
 	}
 
 	if len(errs) > 0 {
-		return util.NewErrors(errs)
+		return errors.NewAggregate(errs)
 	}
 
 	return nil
 }
 
 func validatePort(port int32) error {
-	if port < 0 || port > 65535 {
+	// NOTE: -1 is a special value for auto-selecting the port in the container
+	// backend where possible as opposed to in kind itself.
+	if port < -1 || port > 65535 {
 		return errors.Errorf("invalid port number: %d", port)
 	}
 	return nil
