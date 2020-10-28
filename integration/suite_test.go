@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,8 +12,11 @@ import (
 
 	"github.com/go-check/check"
 	"github.com/iovisor/kubectl-trace/pkg/cmd"
+	"github.com/pkg/errors"
 	"gotest.tools/icmd"
 	"sigs.k8s.io/kind/pkg/cluster"
+	"sigs.k8s.io/kind/pkg/cluster/nodes"
+	"sigs.k8s.io/kind/pkg/cluster/nodeutils"
 	"sigs.k8s.io/kind/pkg/fs"
 )
 
@@ -22,10 +26,10 @@ var (
 
 type KubectlTraceSuite struct {
 	kubeConfigPath string
-	kindContext    *cluster.Context
+	// kindContext    *cluster.Context
 
 	provider *cluster.Provider
-	name string
+	name     string
 }
 
 func init() {
@@ -43,10 +47,15 @@ func (k *KubectlTraceSuite) SetUpSuite(c *check.C) {
 
 	k.provider = cluster.NewProvider()
 	// Create the cluster
-	err := k.provider.Create(
+	err = k.provider.Create(
 		k.name,
 		cluster.CreateWithRetain(false),
 		cluster.CreateWithWaitForReady(time.Duration(0)),
+		cluster.CreateWithKubeconfigPath(k.kubeConfigPath),
+
+		// todo > we need a logger
+		// cluster.ProviderWithLogger(logger),
+		// runtime.GetDefault(logger),
 	)
 	c.Assert(err, check.IsNil)
 
@@ -70,14 +79,16 @@ func (k *KubectlTraceSuite) SetUpSuite(c *check.C) {
 }
 
 func (k *KubectlTraceSuite) TearDownSuite(c *check.C) {
-	err := k.provider.Delete(k.name)
+	kubeConfig, err := k.provider.KubeConfig(k.name, false)
+	c.Assert(err, check.IsNil)
+	err = k.provider.Delete(k.name, kubeConfig)
 	c.Assert(err, check.IsNil)
 }
 
 func Test(t *testing.T) { check.TestingT(t) }
 
 func (k *KubectlTraceSuite) KubectlTraceCmd(c *check.C, args ...string) string {
-	args = append([]string{fmt.Sprintf("--kubeconfig=%s", k.kindContext.KubeConfigPath())}, args...)
+	args = append([]string{fmt.Sprintf("--kubeconfig=%s", k.kubeConfigPath)}, args...)
 	res := icmd.RunCommand(KubectlTraceBinary, args...)
 	c.Assert(res.ExitCode, check.Equals, icmd.Success.ExitCode)
 	return res.Combined()

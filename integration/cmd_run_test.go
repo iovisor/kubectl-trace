@@ -7,7 +7,7 @@ import (
 )
 
 func (k *KubectlTraceSuite) TestRunNode(c *check.C) {
-	nodes, err := k.provider.ListNodes()
+	nodes, err := k.provider.ListNodes(k.name)
 	c.Assert(err, check.IsNil)
 	c.Assert(len(nodes), check.Equals, 1)
 
