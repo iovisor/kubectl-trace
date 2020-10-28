@@ -6,9 +6,9 @@ import (
 	"github.com/iovisor/kubectl-trace/pkg/cmd"
 	"github.com/spf13/pflag"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+
+	// Initialize all k8s client auth plugins
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 func main() {
