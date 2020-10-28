@@ -13,8 +13,6 @@ import (
 	"github.com/iovisor/kubectl-trace/pkg/cmd"
 	"gotest.tools/icmd"
 	"sigs.k8s.io/kind/pkg/cluster"
-	"sigs.k8s.io/kind/pkg/cluster/create"
-	"sigs.k8s.io/kind/pkg/container/docker"
 	"sigs.k8s.io/kind/pkg/fs"
 )
 
@@ -25,6 +23,9 @@ var (
 type KubectlTraceSuite struct {
 	kubeConfigPath string
 	kindContext    *cluster.Context
+
+	provider *cluster.Provider
+	name string
 }
 
 func init() {
@@ -36,39 +37,40 @@ func init() {
 }
 
 func (k *KubectlTraceSuite) SetUpSuite(c *check.C) {
-	clusterName, err := generateClusterName()
-	c.Assert(err, check.IsNil)
-	kctx := cluster.NewContext(clusterName)
-
-	err = kctx.Create(create.Retain(false), create.WaitForReady(time.Duration(0)))
-	c.Assert(err, check.IsNil)
-	k.kindContext = kctx
-
-	nodes, err := kctx.ListNodes()
-
+	var err error
+	k.name, err = generateClusterName()
 	c.Assert(err, check.IsNil)
 
-	// copy the bpftrace into a tar
+	k.provider = cluster.NewProvider()
+	// Create the cluster
+	err := k.provider.Create(
+		k.name,
+		cluster.CreateWithRetain(false),
+		cluster.CreateWithWaitForReady(time.Duration(0)),
+	)
+	c.Assert(err, check.IsNil)
+
+	nodes, err := k.provider.ListNodes(k.name)
+	c.Assert(err, check.IsNil)
+
+	// Copy the bpftrace into a tar
 	dir, err := fs.TempDir("", "image-tar")
 	c.Assert(err, check.IsNil)
 	defer os.RemoveAll(dir)
 	imageTarPath := filepath.Join(dir, "image.tar")
 
-	err = docker.Save(cmd.ImageNameTag, imageTarPath)
+	err = save(cmd.ImageNameTag, imageTarPath)
 	c.Assert(err, check.IsNil)
 
-	f, err := os.Open(imageTarPath)
-	c.Assert(err, check.IsNil)
-
-	// copy the bpftrace image to the nodes
+	// Copy the bpftrace image to the nodes
 	for _, n := range nodes {
-		err = n.LoadImageArchive(f)
+		err = loadImage(imageTarPath, n)
 		c.Assert(err, check.IsNil)
 	}
 }
 
 func (k *KubectlTraceSuite) TearDownSuite(c *check.C) {
-	err := k.kindContext.Delete()
+	err := k.provider.Delete(k.name)
 	c.Assert(err, check.IsNil)
 }
 
@@ -87,4 +89,19 @@ func generateClusterName() (string, error) {
 		return "", err
 	}
 	return strings.ToLower(fmt.Sprintf("%X", buf)), nil
+}
+
+// loads an image tarball onto a node
+func loadImage(imageTarName string, node nodes.Node) error {
+	f, err := os.Open(imageTarName)
+	if err != nil {
+		return errors.Wrap(err, "failed to open image")
+	}
+	defer f.Close()
+	return nodeutils.LoadImageArchive(node, f)
+}
+
+// save saves image to dest, as in `docker save`
+func save(image, dest string) error {
+	return exec.Command("docker", "save", "-o", dest, image).Run()
 }
