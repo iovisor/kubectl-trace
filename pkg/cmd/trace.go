@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/iovisor/kubectl-trace/pkg/factory"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -64,12 +64,10 @@ func NewTraceCommand(streams genericclioptions.IOStreams) *cobra.Command {
 	flags := cmd.PersistentFlags()
 	o.configFlags.AddFlags(flags)
 
-	matchVersionFlags := factory.NewMatchVersionFlags(o.configFlags)
+	matchVersionFlags := cmdutil.NewMatchVersionFlags(o.configFlags)
 	matchVersionFlags.AddFlags(flags)
 
-	// flags.AddGoFlagSet(flag.CommandLine) // todo(leodido) > evaluate whether we need this or not
-
-	f := factory.NewFactory(matchVersionFlags)
+	f := cmdutil.NewFactory(matchVersionFlags)
 
 	cmd.AddCommand(NewRunCommand(f, streams))
 	cmd.AddCommand(NewGetCommand(f, streams))

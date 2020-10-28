@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/iovisor/kubectl-trace/pkg/attacher"
-	"github.com/iovisor/kubectl-trace/pkg/factory"
 	"github.com/iovisor/kubectl-trace/pkg/meta"
 	"github.com/iovisor/kubectl-trace/pkg/signals"
 	"github.com/iovisor/kubectl-trace/pkg/tracejob"
@@ -15,6 +14,7 @@ import (
 	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
 var (
@@ -50,7 +50,7 @@ func NewAttachOptions(streams genericclioptions.IOStreams) *AttachOptions {
 }
 
 // NewAttachCommand provides the attach command wrapping AttachOptions.
-func NewAttachCommand(factory factory.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewAttachCommand(factory cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewAttachOptions(streams)
 
 	cmd := &cobra.Command{
@@ -95,7 +95,7 @@ func (o *AttachOptions) Validate(cmd *cobra.Command, args []string) error {
 }
 
 // Complete completes the setup of the command.
-func (o *AttachOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
+func (o *AttachOptions) Complete(factory cmdutil.Factory, cmd *cobra.Command, args []string) error {
 	// Prepare namespace
 	var err error
 	o.namespace, _, err = factory.ToRawKubeConfigLoader().Namespace()

@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/iovisor/kubectl-trace/pkg/factory"
 	"github.com/iovisor/kubectl-trace/pkg/meta"
 	"github.com/iovisor/kubectl-trace/pkg/tracejob"
 	"github.com/spf13/cobra"
@@ -12,6 +11,7 @@ import (
 	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
 var (
@@ -58,7 +58,7 @@ func NewDeleteOptions(streams genericclioptions.IOStreams) *DeleteOptions {
 }
 
 // NewDeleteCommand provides the delete command wrapping DeleteOptions.
-func NewDeleteCommand(factory factory.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewDeleteCommand(factory cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewDeleteOptions(streams)
 
 	cmd := &cobra.Command{
@@ -102,7 +102,7 @@ func (o *DeleteOptions) Validate(cmd *cobra.Command, args []string) error {
 }
 
 // Complete completes the setup of the command.
-func (o *DeleteOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
+func (o *DeleteOptions) Complete(factory cmdutil.Factory, cmd *cobra.Command, args []string) error {
 	// Prepare namespace
 	var err error
 	o.namespace, _, err = factory.ToRawKubeConfigLoader().Namespace()
