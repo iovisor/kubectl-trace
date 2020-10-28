@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/iovisor/kubectl-trace/pkg/factory"
 	"github.com/iovisor/kubectl-trace/pkg/logs"
 	"github.com/iovisor/kubectl-trace/pkg/meta"
 	"github.com/iovisor/kubectl-trace/pkg/tracejob"
@@ -13,6 +12,7 @@ import (
 	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
 var (
@@ -54,7 +54,7 @@ func NewLogOptions(streams genericclioptions.IOStreams) *LogOptions {
 }
 
 // NewLogCommand provides the log command wrapping LogOptions.
-func NewLogCommand(factory factory.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewLogCommand(factory cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewLogOptions(streams)
 
 	cmd := &cobra.Command{
@@ -98,7 +98,7 @@ func (o *LogOptions) Validate(cmd *cobra.Command, args []string) error {
 }
 
 // Complete completes the setup of the command.
-func (o *LogOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
+func (o *LogOptions) Complete(factory cmdutil.Factory, cmd *cobra.Command, args []string) error {
 	// Prepare namespace
 	var err error
 	o.namespace, _, err = factory.ToRawKubeConfigLoader().Namespace()

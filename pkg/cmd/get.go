@@ -6,13 +6,13 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/iovisor/kubectl-trace/pkg/factory"
 	"github.com/iovisor/kubectl-trace/pkg/meta"
 	"github.com/iovisor/kubectl-trace/pkg/tracejob"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/duration"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
@@ -69,7 +69,7 @@ func NewGetOptions(streams genericclioptions.IOStreams) *GetOptions {
 }
 
 // NewGetCommand provides the get command wrapping GetOptions.
-func NewGetCommand(factory factory.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewGetCommand(factory cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewGetOptions(streams)
 
 	cmd := &cobra.Command{
@@ -114,7 +114,7 @@ func (o *GetOptions) Validate(cmd *cobra.Command, args []string) error {
 }
 
 // Complete completes the setup of the command.
-func (o *GetOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
+func (o *GetOptions) Complete(factory cmdutil.Factory, cmd *cobra.Command, args []string) error {
 	// Prepare namespace
 	var err error
 	o.namespace, _, err = factory.ToRawKubeConfigLoader().Namespace()

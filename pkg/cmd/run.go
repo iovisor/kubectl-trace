@@ -6,18 +6,18 @@ import (
 	"io/ioutil"
 
 	"github.com/iovisor/kubectl-trace/pkg/attacher"
-	"github.com/iovisor/kubectl-trace/pkg/factory"
 	"github.com/iovisor/kubectl-trace/pkg/meta"
 	"github.com/iovisor/kubectl-trace/pkg/signals"
 	"github.com/iovisor/kubectl-trace/pkg/tracejob"
 	"github.com/spf13/cobra"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes/scheme"
 	batchv1client "k8s.io/client-go/kubernetes/typed/batch/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
 var (
@@ -48,7 +48,7 @@ var (
   %[1]s trace run pod/nginx -c nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }"
   %[1]s trace run pod/nginx nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); }"
 
-  # Run a bpftrace inline program on a pod container with a custom image for the init container responsible to fetch linux headers 
+  # Run a bpftrace inline program on a pod container with a custom image for the init container responsible to fetch linux headers
   %[1]s trace run pod/nginx nginx -e "tracepoint:syscalls:sys_enter_* { @[probe] = count(); } --init-imagename=quay.io/custom-init-image-name --fetch-headers"
 
   # Run a bpftrace inline program on a pod container with a custom image for the bpftrace container that will run your program in the cluster
@@ -104,7 +104,7 @@ func NewRunOptions(streams genericclioptions.IOStreams) *RunOptions {
 }
 
 // NewRunCommand provides the run command wrapping RunOptions.
-func NewRunCommand(factory factory.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewRunCommand(factory cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
 	o := NewRunOptions(streams)
 
 	cmd := &cobra.Command{
@@ -175,7 +175,7 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 }
 
 // Complete completes the setup of the command.
-func (o *RunOptions) Complete(factory factory.Factory, cmd *cobra.Command, args []string) error {
+func (o *RunOptions) Complete(factory cmdutil.Factory, cmd *cobra.Command, args []string) error {
 	// Prepare program
 	if len(o.program) > 0 {
 		b, err := ioutil.ReadFile(o.program)
