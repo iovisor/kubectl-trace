@@ -38,10 +38,10 @@ trace_runner ?= _output/bin/trace-runner
 build: clean ${kubectl_trace}
 
 ${kubectl_trace}:
-	CGO_ENABLED=1 $(GO) build ${LDFLAGS} -o $@ ./cmd/kubectl-trace
+	CGO_ENABLED=1 $(GO) build ${LDFLAGS} -mod vendor -o $@ ./cmd/kubectl-trace
 
 ${trace_runner}:
-	CGO_ENABLED=1 $(GO) build ${LDFLAGS} -o $@ ./cmd/trace-runner
+	CGO_ENABLED=1 $(GO) build ${LDFLAGS} -mod vendor -o $@ ./cmd/trace-runner
 
 .PHONY: cross
 cross:
