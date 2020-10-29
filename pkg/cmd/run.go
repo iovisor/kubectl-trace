@@ -21,10 +21,14 @@ import (
 )
 
 var (
-	// ImageNameTag represents the default tracerunner image
-	ImageNameTag = "quay.io/iovisor/kubectl-trace-bpftrace:latest"
-	// InitImageNameTag represents the default init container image
-	InitImageNameTag = "quay.io/iovisor/kubectl-trace-init:latest"
+	// ImageName represents the default tracerunner image
+	ImageName = "quay.io/iovisor/kubectl-trace-bpftrace"
+	// ImageTag represents the tag to fetch for ImageName
+	ImageTag = "latest"
+	// InitImageName represents the default init container image
+	InitImageName = "quay.io/iovisor/kubectl-trace-init"
+	// InitImageTag represents the tag to fetch for InitImage
+	InitImageTag = "latest"
 	// DefaultDeadline is the maximum time a tracejob is allowed to run, in seconds
 	DefaultDeadline = 3600
 	// DefaultDeadlineGracePeriod is the maximum time to wait to print a map or histogram, in seconds
@@ -96,8 +100,8 @@ func NewRunOptions(streams genericclioptions.IOStreams) *RunOptions {
 		IOStreams: streams,
 
 		serviceAccount:      "default",
-		imageName:           ImageNameTag,
-		initImageName:       InitImageNameTag,
+		imageName:           ImageName + ":" + ImageTag,
+		initImageName:       InitImageName + ":" + InitImageTag,
 		deadline:            int64(DefaultDeadline),
 		deadlineGracePeriod: int64(DefaultDeadlineGracePeriod),
 	}

@@ -28,7 +28,7 @@ IMAGE_BUILD_FLAGS ?= "--no-cache"
 
 BPFTRACEVERSION ?= "v0.11.1"
 
-LDFLAGS := -ldflags '-X github.com/iovisor/kubectl-trace/pkg/version.buildTime=$(shell date +%s) -X github.com/iovisor/kubectl-trace/pkg/version.gitCommit=${GIT_COMMIT} -X github.com/iovisor/kubectl-trace/pkg/cmd.ImageNameTag=${IMAGE_TRACERUNNER_COMMIT} -X github.com/iovisor/kubectl-trace/pkg/cmd.InitImageNameTag=${IMAGE_INITCONTAINER_COMMIT}'
+LDFLAGS := -ldflags '-X github.com/iovisor/kubectl-trace/pkg/version.buildTime=$(shell date +%s) -X github.com/iovisor/kubectl-trace/pkg/version.gitCommit=${GIT_COMMIT} -X github.com/iovisor/kubectl-trace/pkg/cmd.ImageName=${IMAGE_NAME} -X github.com/iovisor/kubectl-trace/pkg/cmd.ImageTag=${GIT_COMMIT} -X github.com/iovisor/kubectl-trace/pkg/cmd.InitImageName=${IMAGE_NAME_INIT} -X github.com/iovisor/kubectl-trace/pkg/cmd.InitImageTag=${GIT_COMMIT}'
 TESTPACKAGES := $(shell go list ./... | grep -v github.com/iovisor/kubectl-trace/integration)
 
 kubectl_trace ?= _output/bin/kubectl-trace
