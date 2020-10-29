@@ -68,7 +68,7 @@ func (k *KubectlTraceSuite) SetUpSuite(c *check.C) {
 	defer os.RemoveAll(dir)
 	imageTarPath := filepath.Join(dir, "image.tar")
 
-	err = save(cmd.ImageNameTag, imageTarPath)
+	err = save(cmd.ImageName+":"+cmd.ImageTag, imageTarPath)
 	c.Assert(err, check.IsNil)
 
 	// Copy the bpftrace image to the nodes
