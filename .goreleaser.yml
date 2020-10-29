@@ -18,7 +18,8 @@ builds:
     ldflags: |
       -X github.com/iovisor/kubectl-trace/pkg/version.buildTime={{ .Timestamp }}
       -X github.com/iovisor/kubectl-trace/pkg/version.gitCommit={{ .Commit }}
-      -X github.com/iovisor/kubectl-trace/pkg/version.imageName={{ .Env.IMAGE_NAME }}
+      -X github.com/iovisor/kubectl-trace/pkg/cmd.ImageTag={{ .Commit }}
+      -X github.com/iovisor/kubectl-trace/pkg/cmd.InitImageTag={{ .Commit }}
     binary: kubectl-trace
   - id: "trace-runner"
     goos:
@@ -35,7 +36,8 @@ builds:
     ldflags: |
       -X github.com/iovisor/kubectl-trace/pkg/version.buildTime={{ .Timestamp }}
       -X github.com/iovisor/kubectl-trace/pkg/version.gitCommit={{ .Commit }}
-      -X github.com/iovisor/kubectl-trace/pkg/version.imageName={{ .Env.IMAGE_NAME }}
+      -X github.com/iovisor/kubectl-trace/pkg/cmd.ImageTag={{ .Commit }}
+      -X github.com/iovisor/kubectl-trace/pkg/cmd.InitImageTag={{ .Commit }}
     binary: trace-runner
 
 archives:
