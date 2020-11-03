@@ -188,12 +188,6 @@ func (o *TraceRunnerOptions) prepBpfTraceCommand() (*string, *string, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-		if pid == nil {
-			return nil, nil, fmt.Errorf("pid not found")
-		}
-		if len(*pid) == 0 {
-			return nil, nil, fmt.Errorf("invalid pid found")
-		}
 		f, err := ioutil.ReadFile(programPath)
 		if err != nil {
 			return nil, nil, err
