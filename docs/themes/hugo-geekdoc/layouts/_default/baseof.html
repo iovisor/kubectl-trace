@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="{{ .Site.Language.Lang }}">
+
+<head>
+    {{ partial "head" . }}
+</head>
+
+<body>
+    {{ partial "svg-icon-symbols" . }}
+
+    <div class="wrapper">
+        <input type="checkbox" class="hidden" id="menu-control" />
+        {{ partial "site-header" (dict "Root" . "MenuEnabled" true) }}
+
+        <main class="container flex flex-even">
+            <aside class="gdoc-nav">
+                {{ partial "menu" . }}
+            </aside>
+
+            <div class="gdoc-page">
+                {{ template "main" . }}
+                {{ partial "page-footer" . }}
+            </div>
+        </main>
+
+        {{ partial "site-footer" . }}
+    </div>
+
+    {{ partial "foot" . }}
+</body>
+</html>

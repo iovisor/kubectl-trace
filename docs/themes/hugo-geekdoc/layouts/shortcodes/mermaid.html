@@ -1,0 +1,16 @@
+{{ if not (.Page.Scratch.Get "mermaid") }}
+<!-- Include mermaid only first time -->
+<script defer src="{{ "js/mermaid.min.js" | relURL }}"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function(event) {
+        mermaid.initialize({
+            flowchart: { useMaxWidth: true }
+        });
+    });
+</script>
+{{ .Page.Scratch.Set "mermaid" true }}
+{{ end }}
+
+<pre class="gdoc-mermaid mermaid{{ with .Get "class" }} {{ . }}{{ end }}">
+  {{- .Inner -}}
+</pre>

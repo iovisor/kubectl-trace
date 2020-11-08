@@ -1,0 +1,17 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="{{ partial "title" . }}">
+
+<title>{{ partial "title" . }} | {{ .Site.Title -}}</title>
+
+<link rel="icon" href="{{ "favicon/favicon-32x32.png" | relURL }}" type="image/x-icon">
+<link rel="stylesheet" href="{{ "main.min.css" | relURL }}" media="screen">
+<link rel="stylesheet" href="{{ "custom.css" | relURL }}" media="screen">
+
+{{ with .OutputFormats.Get "rss" -}}
+    {{ printf `<link rel="%s" type="%s" href="%s" title="%s" />` .Rel .MediaType.Type .Permalink $.Site.Title | safeHTML }}
+{{ end -}}
+
+{{ "<!--" | safeHTML -}}
+    Made with Geekdoc theme https://github.com/xoxys/hugo-geekdoc
+{{- "-->" | safeHTML }}

@@ -1,0 +1,28 @@
+baseURL = "https://adelbertc.github.io/kubectl-trace"
+languageCode = "en-us"
+title = "kubectl-trace"
+theme = "hugo-geekdoc"
+
+# Geekdoc required configuration
+pygmentsUseClasses = true
+pygmentsCodeFences = true
+disablePathToLower = true
+
+# Needed for mermaid shortcodes
+[markup]
+  [markup.goldmark.renderer]
+    # Needed for mermaid shortcode
+    unsafe = true
+  [markup.tableOfContents]
+    startLevel = 1
+    endLevel = 9
+
+[params]
+# Required to get well formatted code blocks
+pygmentsUseClasses = true
+pygmentsCodeFences = true
+disablePathToLower = true
+enableGitInfo = true
+
+geekdocRepo = "https://github.com/adelbertc/kubectl-trace"
+geekdocEditPath = "edit/master/content"
