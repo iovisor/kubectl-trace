@@ -1,0 +1,10 @@
+---
+more:
+  - name: Releases
+    ref: "https://github.com/iovisor/kubectl-trace/releases"
+    external: true
+    icon: "download"
+  - name: "View Source"
+    ref: "https://github.com/iovisor/kubectl-trace"
+    external: true
+    icon: "github"
