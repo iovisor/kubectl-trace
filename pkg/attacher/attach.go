@@ -52,55 +52,61 @@ func (a *Attacher) AttachJob(traceJobID types.UID, namespace string) {
 }
 
 func (a *Attacher) Attach(selector, namespace string) {
-	go wait.ExponentialBackoff(wait.Backoff{
-		Duration: time.Second * 1,
-		Factor:   0.01,
-		Jitter:   0.0,
-		Steps:    100,
-	}, func() (bool, error) {
-		pl, err := a.CoreV1Client.Pods(namespace).List(context.Background(), metav1.ListOptions{
-			LabelSelector: selector,
+	go func() {
+		err := wait.ExponentialBackoff(wait.Backoff{
+			Duration: time.Second * 1,
+			Factor:   0.01,
+			Jitter:   0.0,
+			Steps:    100,
+		}, func() (bool, error) {
+			pl, err := a.CoreV1Client.Pods(namespace).List(context.Background(), metav1.ListOptions{
+				LabelSelector: selector,
+			})
+
+			if err != nil {
+				return false, err
+			}
+
+			if len(pl.Items) == 0 {
+				return false, fmt.Errorf(podNotFoundError)
+			}
+			pod := &pl.Items[0]
+			if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+				return false, fmt.Errorf(podPhaseNotAcceptedError, pod.Status.Phase)
+			}
+
+			if len(pod.Spec.Containers) != 1 {
+				return false, fmt.Errorf(invalidPodContainersSizeError)
+			}
+
+			restClient := a.CoreV1Client.RESTClient().(*restclient.RESTClient)
+			containerName := pod.Spec.Containers[0].Name
+
+			t, err := setupTTY(a.IOStreams.Out, a.IOStreams.In)
+			if err != nil {
+				return false, err
+			}
+			ao := attach{
+				restClient:    restClient,
+				podName:       pod.Name,
+				namespace:     pod.Namespace,
+				containerName: containerName,
+				config:        a.Config,
+				tty:           t,
+			}
+			err = t.Safe(ao.defaultAttachFunc())
+
+			if err != nil {
+				// on error, just send false so that the backoff mechanism can do a new tentative
+				return false, nil
+			}
+			return true, nil
 		})
 
 		if err != nil {
-			return false, err
+			fmt.Fprintln(a.IOStreams.ErrOut, err)
 		}
-
-		if len(pl.Items) == 0 {
-			return false, fmt.Errorf(podNotFoundError)
-		}
-		pod := &pl.Items[0]
-		if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
-			return false, fmt.Errorf(podPhaseNotAcceptedError, pod.Status.Phase)
-		}
-
-		if len(pod.Spec.Containers) != 1 {
-			return false, fmt.Errorf(invalidPodContainersSizeError)
-		}
-
-		restClient := a.CoreV1Client.RESTClient().(*restclient.RESTClient)
-		containerName := pod.Spec.Containers[0].Name
-
-		t, err := setupTTY(a.IOStreams.Out, a.IOStreams.In)
-		if err != nil {
-			return false, err
-		}
-		ao := attach{
-			restClient:    restClient,
-			podName:       pod.Name,
-			namespace:     pod.Namespace,
-			containerName: containerName,
-			config:        a.Config,
-			tty:           t,
-		}
-		err = t.Safe(ao.defaultAttachFunc())
-
-		if err != nil {
-			// on error, just send false so that the backoff mechanism can do a new tentative
-			return false, nil
-		}
-		return true, nil
-	})
+	}()
 	<-a.ctx.Done()
 }
 
