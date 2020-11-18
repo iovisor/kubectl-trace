@@ -68,7 +68,9 @@ func (a *Attacher) Attach(selector, namespace string) {
 			}
 
 			if len(pl.Items) == 0 {
-				return false, fmt.Errorf(podNotFoundError)
+				// A job might have been created but the pod scheduling could have been delayed
+				// therefore we cannot simply error out here and must continue retrying.
+				return false, nil
 			}
 			pod := &pl.Items[0]
 			if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
