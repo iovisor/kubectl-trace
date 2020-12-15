@@ -145,7 +145,7 @@ func NewRunCommand(factory cmdutil.Factory, streams genericclioptions.IOStreams)
 
 	// flags for existing usage
 	cmd.Flags().StringVarP(&o.container, "container", "c", o.container, "Specify the container")
-	cmd.Flags().StringVarP(&o.eval, "eval", "e", o.eval, "Literal string to be evaluated as a bpftrace program")
+	cmd.Flags().StringVarP(&o.eval, "eval", "e", o.eval, "DEPRECATED: Literal string to be evaluated as a bpftrace program")
 	cmd.Flags().StringVarP(&o.filename, "filename", "f", o.filename, "File containing a bpftrace program")
 
 	// flags for new generic interface
