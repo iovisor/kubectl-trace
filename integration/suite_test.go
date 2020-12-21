@@ -10,9 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-check/check"
 	"github.com/iovisor/kubectl-trace/pkg/cmd"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	"gotest.tools/icmd"
 	"sigs.k8s.io/kind/pkg/cluster"
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
@@ -25,6 +26,8 @@ var (
 )
 
 type KubectlTraceSuite struct {
+	suite.Suite
+
 	kubeConfigPath string
 	// kindContext    *cluster.Context
 
@@ -36,14 +39,12 @@ func init() {
 	if KubectlTraceBinary == "" {
 		KubectlTraceBinary = "kubectl-trace"
 	}
-
-	check.Suite(&KubectlTraceSuite{})
 }
 
-func (k *KubectlTraceSuite) SetUpSuite(c *check.C) {
+func (k *KubectlTraceSuite) SetupSuite() {
 	var err error
 	k.name, err = generateClusterName()
-	c.Assert(err, check.IsNil)
+	assert.Nil(k.T(), err)
 
 	k.provider = cluster.NewProvider()
 	// Create the cluster
@@ -57,40 +58,42 @@ func (k *KubectlTraceSuite) SetUpSuite(c *check.C) {
 		// cluster.ProviderWithLogger(logger),
 		// runtime.GetDefault(logger),
 	)
-	c.Assert(err, check.IsNil)
+	assert.Nil(k.T(), err)
 
 	nodes, err := k.provider.ListNodes(k.name)
-	c.Assert(err, check.IsNil)
+	assert.Nil(k.T(), err)
 
 	// Copy the bpftrace into a tar
 	dir, err := fs.TempDir("", "image-tar")
-	c.Assert(err, check.IsNil)
+	assert.Nil(k.T(), err)
 	defer os.RemoveAll(dir)
 	imageTarPath := filepath.Join(dir, "image.tar")
 
 	err = save(cmd.ImageName+":"+cmd.ImageTag, imageTarPath)
-	c.Assert(err, check.IsNil)
+	assert.Nil(k.T(), err)
 
 	// Copy the bpftrace image to the nodes
 	for _, n := range nodes {
 		err = loadImage(imageTarPath, n)
-		c.Assert(err, check.IsNil)
+		assert.Nil(k.T(), err)
 	}
 }
 
-func (k *KubectlTraceSuite) TearDownSuite(c *check.C) {
+func (k *KubectlTraceSuite) TeardownSuite() {
 	kubeConfig, err := k.provider.KubeConfig(k.name, false)
-	c.Assert(err, check.IsNil)
+	assert.Nil(k.T(), err)
 	err = k.provider.Delete(k.name, kubeConfig)
-	c.Assert(err, check.IsNil)
+	assert.Nil(k.T(), err)
 }
 
-func Test(t *testing.T) { check.TestingT(t) }
+func TestKubectlTraceSuite(t *testing.T) {
+	suite.Run(t, &KubectlTraceSuite{})
+}
 
-func (k *KubectlTraceSuite) KubectlTraceCmd(c *check.C, args ...string) string {
+func (k *KubectlTraceSuite) KubectlTraceCmd(args ...string) string {
 	args = append([]string{fmt.Sprintf("--kubeconfig=%s", k.kubeConfigPath)}, args...)
 	res := icmd.RunCommand(KubectlTraceBinary, args...)
-	c.Assert(res.ExitCode, check.Equals, icmd.Success.ExitCode)
+	assert.Equal(k.T(), icmd.Success.ExitCode, res.ExitCode)
 	return res.Combined()
 }
 
