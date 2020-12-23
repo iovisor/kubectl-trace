@@ -1,0 +1,10 @@
+{{$file := .Get "file"}}
+<div class="gdoc-include">
+{{- if eq (.Get "markdown") "true" -}}
+{{- $file | readFile | markdownify -}}
+{{- else if (.Get "language") -}}
+{{- highlight ($file | readFile) (.Get "language") (default "linenos=table" (.Get "options")) -}}
+{{- else -}}
+{{ $file | readFile | safeHTML }}
+{{- end -}}
+</div>

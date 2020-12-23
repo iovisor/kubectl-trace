@@ -1,0 +1,16 @@
+<header class="gdoc-header">
+    <div class="container flex align-center justify-between">
+        {{ if .MenuEnabled }}
+        <label for="menu-control" class="gdoc-nav__control">
+            <svg class="icon menu"><use xlink:href="#menu"></use></svg>
+            <svg class="icon arrow-back"><use xlink:href="#arrow_back"></use></svg>
+        </label>
+        {{ end }}
+        <a class="gdoc-header__link" href="{{ .Root.Site.BaseURL }}">
+            <span class="gdoc-brand flex align-center">
+                <img class="gdoc-brand__img" src="{{ (default "brand.svg" .Root.Site.Params.GeekdocLogo) | relURL }}" alt="{{ .Root.Site.Title }}" width=38 height=38>
+                {{ .Root.Site.Title }}
+            </span>
+        </a>
+    </div>
+</header>

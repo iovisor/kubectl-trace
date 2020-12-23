@@ -1,2 +1,5 @@
 _output/
 dist/
+
+# For Hugo
+public

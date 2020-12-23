@@ -1,0 +1,32 @@
+{{ $current := . }}
+{{ template "tree-nav" dict "sect" .Site.Home.Sections "current" $current }}
+
+<!-- templates -->
+{{ define "tree-nav" }}
+    {{ $current := .current }}
+
+    <ul class="gdoc-nav__list">
+        {{ range .sect.GroupBy "Weight" }}
+            {{ range .ByTitle }}
+            {{ if not .Params.geekdocHidden }}
+            <li>
+            {{ if or .Content .Params.geekdocFlatSection }}
+                <span class="flex">
+                    <a href="{{ .RelPermalink }}" class="gdoc-nav__entry {{ if eq $current . }}is-active{{ end }}">
+                        {{ partial "title" . }}
+                    </a>
+                </span>
+            {{ else }}
+                <span class="flex">{{ partial "title" . }}</span>
+            {{ end }}
+
+            {{ $numberOfPages := (add (len .Pages) (len .Sections)) }}
+            {{ if and (ne $numberOfPages 0) (not .Params.geekdocFlatSection) }}
+                {{ template "tree-nav" dict "sect" .Pages "current" $current}}
+            {{ end }}
+            </li>
+            {{ end }}
+            {{ end }}
+        {{ end }}
+    </ul>
+{{ end }}

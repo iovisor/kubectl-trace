@@ -1,0 +1,8 @@
+{{ $showAnchor := (and (default true .Page.Params.GeekdocAnchor) (default true .Site.Params.GeekdocAnchor)) }}
+
+{{ $.Scratch.Set "content" (.Content | replaceRE `<nav id="TableOfContents">\s*<ul>\s*<li>\s*<ul>` `<nav id="TableOfContents"><ul>` | replaceRE `</ul>\s*</li>\s*</ul>\s*</nav>` `</ul></nav>` | safeHTML) }}
+{{ if $showAnchor }}
+    {{ $.Scratch.Set "content" ($.Scratch.Get "content" | replaceRE "(<h[2-9] id=\"([^\"]+)\"[^>]*>)(.*?)(</h[2-9]+>)" (printf `<div class="gdoc-page__anchorwrap">%s%s<a data-clipboard-text="%s" class="gdoc-page__anchor gdoc-page__anchor--right clip" aria-label="Anchor %s" href="#%s"><svg class="icon link"><use xlink:href="#link"></use></svg></a>%s</div>` `${1}` `${3}` (absURL (printf "%s#%s" .Permalink `${2}`)) `${3}` `${2}` `${4}`) | safeHTML) }}
+{{ end }}
+
+{{ $.Scratch.Get "content" }}
