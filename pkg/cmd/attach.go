@@ -77,6 +77,7 @@ func NewAttachCommand(factory cmdutil.Factory, streams genericclioptions.IOStrea
 	return cmd
 }
 
+// Validate the options
 func (o *AttachOptions) Validate(cmd *cobra.Command, args []string) error {
 	switch len(args) {
 	case 1:
@@ -112,6 +113,7 @@ func (o *AttachOptions) Complete(factory cmdutil.Factory, cmd *cobra.Command, ar
 	return nil
 }
 
+// Run the attachement of options
 func (o *AttachOptions) Run() error {
 	jobsClient, err := batchv1client.NewForConfig(o.clientConfig)
 	if err != nil {

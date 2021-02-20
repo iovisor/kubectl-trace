@@ -84,6 +84,7 @@ type RunOptions struct {
 	fetchHeaders        bool
 	deadline            int64
 	deadlineGracePeriod int64
+	label               string
 
 	resourceArg string
 	attach      bool
@@ -142,6 +143,7 @@ func NewRunCommand(factory cmdutil.Factory, streams genericclioptions.IOStreams)
 	cmd.Flags().BoolVar(&o.fetchHeaders, "fetch-headers", o.fetchHeaders, "Whether to fetch linux headers or not")
 	cmd.Flags().Int64Var(&o.deadline, "deadline", o.deadline, "Maximum time to allow trace to run in seconds")
 	cmd.Flags().Int64Var(&o.deadlineGracePeriod, "deadline-grace-period", o.deadlineGracePeriod, "Maximum wait time to print maps or histograms after deadline, in seconds")
+	cmd.Flags().StringVar(&o.label, "label", o.label, "label for the trace")
 
 	return cmd
 }
@@ -318,6 +320,7 @@ func (o *RunOptions) Run() error {
 		FetchHeaders:        o.fetchHeaders,
 		Deadline:            o.deadline,
 		DeadlineGracePeriod: o.deadlineGracePeriod,
+		Label:               o.label,
 	}
 
 	job, err := tc.CreateJob(tj)

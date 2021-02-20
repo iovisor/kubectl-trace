@@ -7,7 +7,7 @@ const (
 	TraceIDLabelKey = "iovisor.org/kubectl-trace-id"
 	// TraceLabelKey is a meta to annotate objects created by this tool
 	TraceLabelKey = "iovisor.org/kubectl-trace"
-
+	Label         = "ELK"
 	// ObjectNamePrefix is the prefix used for objects created by kubectl-trace
 	ObjectNamePrefix = "kubectl-trace-"
 )

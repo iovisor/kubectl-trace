@@ -86,6 +86,7 @@ func NewDeleteCommand(factory cmdutil.Factory, streams genericclioptions.IOStrea
 	return cmd
 }
 
+// Validate the delete
 func (o *DeleteOptions) Validate(cmd *cobra.Command, args []string) error {
 	switch len(args) {
 	case 1:

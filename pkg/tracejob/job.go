@@ -39,6 +39,7 @@ type TraceJob struct {
 	FetchHeaders        bool
 	Deadline            int64
 	DeadlineGracePeriod int64
+	Label               string
 	StartTime           *metav1.Time
 	Status              TraceJobStatus
 }
@@ -52,8 +53,9 @@ func (t *TraceJobClient) WithOutStream(o io.Writer) {
 }
 
 type TraceJobFilter struct {
-	Name *string
-	ID   *types.UID
+	Name  *string
+	ID    *types.UID
+	Label *string
 }
 
 func (nf TraceJobFilter) selectorOptions() metav1.ListOptions {
@@ -76,6 +78,8 @@ func (nf TraceJobFilter) selectorOptions() metav1.ListOptions {
 			LabelSelector: fmt.Sprintf("%s", meta.TraceIDLabelKey),
 		}
 	}
+
+	selectorOptions = metav1.ListOptions{LabelSelector: fmt.Sprintf("%s", *nf.Label)}
 
 	return selectorOptions
 }
@@ -201,6 +205,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 		bpfTraceCmd = append(bpfTraceCmd, "--inpod")
 		bpfTraceCmd = append(bpfTraceCmd, "--container="+nj.ContainerName)
 		bpfTraceCmd = append(bpfTraceCmd, "--poduid="+nj.PodUID)
+		bpfTraceCmd = append(bpfTraceCmd, "--")
 	}
 
 	commonMeta := metav1.ObjectMeta{
@@ -209,6 +214,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 		Labels: map[string]string{
 			meta.TraceLabelKey:   nj.Name,
 			meta.TraceIDLabelKey: string(nj.ID),
+			meta.Label:           nj.Label,
 		},
 		Annotations: map[string]string{
 			meta.TraceLabelKey:   nj.Name,
