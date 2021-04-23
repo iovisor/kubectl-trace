@@ -3,6 +3,7 @@ module github.com/iovisor/kubectl-trace
 go 1.15
 
 require (
+	github.com/evanphx/json-patch v4.9.0+incompatible
 	github.com/fntlnz/mountinfo v0.0.0-20171106231217-40cb42681fad
 	github.com/kr/pretty v0.2.1 // indirect
 	github.com/pkg/errors v0.9.1
@@ -16,4 +17,5 @@ require (
 	k8s.io/client-go v0.19.3
 	k8s.io/kubectl v0.19.3
 	sigs.k8s.io/kind v0.9.0
+	sigs.k8s.io/yaml v1.2.0
 )
