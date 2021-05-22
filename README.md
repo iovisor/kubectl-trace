@@ -273,7 +273,7 @@ kubectl trace run --namespace=mynamespace --serviceaccount=kubectltrace ip-180-1
 
 There may be times when you need to customize the job descriptor that kubectl-trace generates. You can provide a patch file that will modify any of the job's attributes before it executes on the cluster.
 
-The the `--patch` and `--patch-type` arguments to the `run` command specify your patch file's location and merge strategy:
+The `--patch` and `--patch-type` arguments to the `run` command specify your patch file's location and merge strategy:
 
  * `--patch` - sets the path to a YAML or JSON file containing your patch.
  * `--patch-type` - sets the strategy that will be used to modify the job descriptor.
