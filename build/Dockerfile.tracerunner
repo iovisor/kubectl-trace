@@ -1,4 +1,4 @@
-ARG bpftraceversion=v0.12.1
+ARG bpftraceversion=v0.13.0
 FROM quay.io/iovisor/bpftrace:$bpftraceversion as bpftrace
 
 FROM golang:1.15-buster as gobuilder
