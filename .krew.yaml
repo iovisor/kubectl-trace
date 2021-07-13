@@ -38,5 +38,6 @@ spec:
     bin: kubectl-trace.exe
   shortDescription: Trace Kubernetes pods and nodes with system tools
   description: |
-    Usage:
-      Read more documentation at: https://github.com/iovisor/kubectl-trace
+    This plugin is used to analyze production systems and Kubernetes workloads
+    by scheduling a trace job on a target node or alongside a target pod in
+    order to analyze it with eBPF and other tracing and profiling technologies.
