@@ -1,30 +1,35 @@
 # kubectl-trace Release Process
 
-Our release process is automated using [goreleaser](https://github.com/goreleaser/goreleaser).
+Our release process is automated using [goreleaser](https://github.com/goreleaser/goreleaser)
+and automatically publishes the release to [krew](https://github.com/kubernetes-sigs/krew-index)
 
 When we release we do the following process:
 
 1. We decide together (usually in the #kubectl-trace channel in Kubernetes slack) what's the next version to tag
-2. A person with repository rights does the tag
-3. The same person runs goreleaser in their machine
-4. The tag is live on Github with the artifacts
-5. Travis builds the tag and push the related docker images
+2. A maintainer will tag master at a passing CI revision
+3. Pushing the tag will result in goreleaser github action creating a release, and publishing this to the `krew` index
 
 ## Release commands
 
 Tag the version:
 
 ```bash
-git tag -a v0.1.0-rc.0 -m "v0.1.0-rc.0"
-git push origin v0.1.0-rc.0
+VERSION=v0.1.2
+git tag -a $VERSION -m "$VERSION"
+git push origin $VERSION
 ```
 
 From there, github actions should automatically create the release, as it sets
 the `GITHUB_TOKEN`.
 
-In case you need to run a release manually, so long as you are an administrator:
+### Manual release
+
+In case you need to run a release manually:
 
 ```
 export GITHUB_TOKEN=<YOUR_GH_TOKEN>
 make release
 ```
+
+Though this will not automatically update the krew index, and will require
+administrative privileges on the repo.
