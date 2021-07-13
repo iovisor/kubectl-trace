@@ -33,7 +33,7 @@ spec:
   - selector:
       matchLabels:
         os: windows
-        arch: amd64
+        arch: 386
     {{addURIAndSha "https://github.com/iovisor/kubectl-trace/releases/download/{{ .TagName }}/kubectl-trace_{{ .TagName }}_windows_386.zip" .TagName }}
     bin: kubectl-trace.exe
   shortDescription: Trace Kubernetes pods and nodes with system tools
