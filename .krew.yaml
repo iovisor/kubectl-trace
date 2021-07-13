@@ -28,13 +28,13 @@ spec:
       matchLabels:
         os: windows
         arch: amd64
-    {{addURIAndSha "https://github.com/iovisor/kubectl-trace/releases/download/{{ .TagName }}/kubectl-trace_{{ .TagName }}_windows_amd64.tar.gz" .TagName }}
+    {{addURIAndSha "https://github.com/iovisor/kubectl-trace/releases/download/{{ .TagName }}/kubectl-trace_{{ .TagName }}_windows_amd64.zip" .TagName }}
     bin: kubectl-trace.exe
   - selector:
       matchLabels:
         os: windows
         arch: amd64
-    {{addURIAndSha "https://github.com/iovisor/kubectl-trace/releases/download/{{ .TagName }}/kubectl-trace_{{ .TagName }}_windows_386.tar.gz" .TagName }}
+    {{addURIAndSha "https://github.com/iovisor/kubectl-trace/releases/download/{{ .TagName }}/kubectl-trace_{{ .TagName }}_windows_386.zip" .TagName }}
     bin: kubectl-trace.exe
   shortDescription: Trace Kubernetes pods and nodes with system tools
   description: |
