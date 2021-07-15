@@ -1,6 +1,6 @@
 name: Kubectl trace build and tests
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   build_and_test:
@@ -9,6 +9,9 @@ jobs:
       matrix:
         os: [ubuntu-16.04, ubuntu-18.04] # 16.04.4 release has 4.15 kernel
                                          # 18.04.3 release has 5.0.0 kernel
+        env:
+        - TEST_KUBERNETES_BACKEND: minikube
+        - TEST_KUBERNETES_BACKEND: kind
     steps:
     - uses: actions/checkout@v2
     - run: git fetch --prune --unshallow # We want tags
@@ -39,13 +42,26 @@ jobs:
 
     - name: Build CI image
       run: |
-       ./build/scripts/ci-build-image.sh ${{ github.ref }}
+       ./build/scripts/ci-build-image.sh ${{ github.head_ref }}
+
+    - name: Install minikube
+      env: ${{matrix.env}}
+      if: ${{ env.TEST_KUBERNETES_BACKEND == 'minikube' }}
+      run: |
+        curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        sudo install minikube-linux-amd64 /usr/local/bin/minikube
 
     - name: Run integration tests
+      env: ${{matrix.env}}
       run: |
         make integration
 
+#    - name: Debug failure over SSH
+#      if: ${{ failure() }}
+#      uses: mxschmitt/action-tmate@v3
+
     - name: Build cross binaries
+      if: github.ref == 'refs/heads/master'
       run: |
         curl -LO https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_amd64.deb && sudo dpkg -i goreleaser_amd64.deb
         make cross
@@ -56,6 +72,7 @@ jobs:
         path: _output/bin/kubectl-trace
 
     - uses: actions/upload-artifact@v1
+      if: github.ref == 'refs/heads/master'
       with:
         name: ${{ matrix.os }}-kubectl-trace-cross-dist
         path: dist
@@ -66,4 +83,4 @@ jobs:
       env:
         QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
       run: |
-        ./build/scripts/ci-release-image.sh ${{ github.ref }}
+        ./build/scripts/ci-release-image.sh ${{ github.head_ref }}
