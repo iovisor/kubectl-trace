@@ -3,15 +3,21 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path"
+	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
+	"github.com/iovisor/kubectl-trace/pkg/downloader"
 	"github.com/iovisor/kubectl-trace/pkg/procfs"
+	"github.com/iovisor/kubectl-trace/pkg/pty"
+	"github.com/iovisor/kubectl-trace/pkg/upload"
 	"github.com/spf13/cobra"
 )
 
@@ -30,6 +36,14 @@ var (
 	fakeToolsDir       = "/usr/share/fake/"
 )
 
+type outputType string
+
+const (
+	stdout   outputType = "stdout"
+	download outputType = "download"
+	gcs      outputType = "gs"
+)
+
 type TraceRunnerOptions struct {
 	// The tracing system to use.
 	// tracer = bpftrace | bcc | fake
@@ -39,6 +53,10 @@ type TraceRunnerOptions struct {
 
 	containerID string
 
+	// Where will the tracing system send output.
+	// output = stdout | download | file:///path | URI
+	output string
+
 	// In the case of bcc the name of the bcc program to execute.
 	// In the case of bpftrace the path to contents of the user provided expression or program.
 	program string
@@ -46,6 +64,9 @@ type TraceRunnerOptions struct {
 	// In the case of bcc the user provided arguments to pass on to program.
 	// Not used for bpftrace.
 	programArgs []string
+
+	// Values populated after validation
+	outputType outputType
 }
 
 func NewTraceRunnerOptions() *TraceRunnerOptions {
@@ -73,6 +94,7 @@ func NewTraceRunnerCommand() *cobra.Command {
 	cmd.Flags().StringVar(&o.tracer, "tracer", "bpftrace", "Tracing system to use")
 	cmd.Flags().StringVar(&o.podUID, "pod-uid", "", "UID of target pod")
 	cmd.Flags().StringVar(&o.containerID, "container-id", "", "ID of target container")
+	cmd.Flags().StringVar(&o.output, "output", "stdout", "Where to send tracing output (stdout or local path)")
 	cmd.Flags().StringVar(&o.program, "program", "/programs/program.bt", "Tracer input script or executable")
 	cmd.Flags().StringArrayVar(&o.programArgs, "args", o.programArgs, "Arguments to pass through to executable in --program")
 	return cmd
@@ -83,6 +105,21 @@ func (o *TraceRunnerOptions) Validate(cmd *cobra.Command, args []string) error {
 	case bpftrace, bcc, fake:
 	default:
 		return fmt.Errorf("unknown tracer %s", o.tracer)
+	}
+
+	if len(o.output) == 0 {
+		return fmt.Errorf("output cannot be empty when specified")
+	}
+
+	switch {
+	case o.output == "stdout":
+		o.outputType = stdout
+	case o.output[0] == '/' || o.output[0] == '.':
+		o.outputType = download
+	case strings.HasPrefix(o.output, "gs://"):
+		o.outputType = gcs
+	default:
+		return fmt.Errorf("unknown output %s", o.output)
 	}
 
 	return nil
@@ -144,14 +181,55 @@ func (o *TraceRunnerOptions) Run() error {
 		c = exec.CommandContext(ctx, *binary, args...)
 	}
 
-	return runTraceCommand(c)
+	err = runTraceCommand(c, o.outputType != stdout)
+	if err != nil {
+		return err
+	}
+
+	switch o.outputType {
+	case stdout:
+		return err
+	case download:
+		fmt.Println("waiting for trace output to be uploaded")
+		return signalUploader()
+	case gcs:
+		client, err := upload.NewGcsUploader(upload.GcsUploaderOptions{})
+		if err != nil {
+			return err
+		}
+		fmt.Println("Uploading trace output to " + o.output)
+		return client.Upload(MetadataDir, o.output)
+	}
+
+	return nil
 }
 
-func runTraceCommand(c *exec.Cmd) error {
+// This helper will ensure that the output for the command is handled correctly,
+// either streaming to stdout or teeing to a long file as well.
+func runTraceCommand(c *exec.Cmd, streamOutput bool) error {
 	c.Stdin = os.Stdin
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
-	return c.Run()
+	if streamOutput {
+		outLog, err := os.OpenFile(path.Join(MetadataDir, "stdout.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return fmt.Errorf("failed to open stdout log file: %v", err)
+		}
+
+		// Note that this is necessary since kubectl-trace runs with a TTY
+		// We need to run the trace-runner under a PTY if we want to tee the output
+		// or else the output will be delayed and in large chunks rather than a stream
+		f, err := pty.Start(c)
+		if err != nil {
+			return fmt.Errorf("failed to start trace runner with pty: %v", err)
+		}
+		w := io.MultiWriter(os.Stdout, outLog)
+		io.Copy(w, f)
+		defer outLog.Close()
+		return nil
+	} else {
+		c.Stdout = os.Stdout
+		c.Stderr = os.Stderr
+		return c.Run()
+	}
 }
 
 func (o *TraceRunnerOptions) prepBpfTraceCommand() (*string, []string, error) {
@@ -218,4 +296,41 @@ func (o *TraceRunnerOptions) prepFakeCommand() (*string, []string, error) {
 	}
 
 	return &program, args, nil
+}
+
+func signalUploader() error {
+	// Signal uploader and wait for it to finish.
+	b, err := ioutil.ReadFile(downloader.PidFile)
+	if err != nil {
+		return err
+	}
+
+	pid, err := strconv.Atoi(string(b))
+	if err != nil {
+		return err
+	}
+
+	uploader, err := os.FindProcess(pid)
+	if err != nil {
+		return err
+	}
+
+	err = uploader.Signal(os.Interrupt)
+	if err != nil {
+		return err
+	}
+
+	// uploader.Wait() doesn't work if the process isn't a child
+	// so watch in a loop.
+	for {
+		time.Sleep(1 * time.Second)
+		err = uploader.Signal(os.Interrupt)
+
+		// err mean process no longer exists
+		if err != nil {
+			break
+		}
+	}
+
+	return nil
 }

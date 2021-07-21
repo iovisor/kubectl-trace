@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"path"
 	"strconv"
 
 	jsonpatch "github.com/evanphx/json-patch"
@@ -23,6 +24,13 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const (
+	// OutputSizeLimit is the size of the volume mounted for trace output.
+	OutputSizeLimit  = "1Gi"
+	GoogleAppKeyPath = "/var/secrets/google/"
+	GoogleAppKeyName = "key.json"
+)
+
 type TraceJobClient struct {
 	JobClient    batchv1typed.JobInterface
 	ConfigClient corev1typed.ConfigMapInterface
@@ -37,6 +45,7 @@ type TraceJob struct {
 	ServiceAccount      string
 	Tracer              string
 	Target              TraceJobTarget
+	Output              string
 	Program             string
 	ProgramArgs         []string
 	PodUID              string
@@ -46,6 +55,7 @@ type TraceJob struct {
 	FetchHeaders        bool
 	Deadline            int64
 	DeadlineGracePeriod int64
+	GoogleAppSecret     string
 	StartTime           *metav1.Time
 	Status              TraceJobStatus
 	Patch               string
@@ -232,6 +242,7 @@ func (nj *TraceJob) Job() *batchv1.Job {
 		"--tracer=" + nj.Tracer,
 		"--pod-uid=" + nj.Target.PodUID,
 		"--container-id=" + nj.Target.ContainerID,
+		"--output=" + nj.Output,
 	}
 
 	if nj.Tracer == "bpftrace" {
@@ -295,6 +306,14 @@ func (nj *TraceJob) Job() *batchv1.Job {
 								},
 							},
 						},
+						apiv1.Volume{
+							Name: "trace-output",
+							VolumeSource: apiv1.VolumeSource{
+								EmptyDir: &apiv1.EmptyDirVolumeSource{
+									SizeLimit: quantityPtr(resource.MustParse(OutputSizeLimit)),
+								},
+							},
+						},
 					},
 					Containers: []apiv1.Container{
 						apiv1.Container{
@@ -323,6 +342,10 @@ func (nj *TraceJob) Job() *batchv1.Job {
 									Name:      "sys",
 									MountPath: "/sys",
 									ReadOnly:  true,
+								},
+								apiv1.VolumeMount{
+									Name:      "trace-output",
+									MountPath: "/tmp/kubectl-trace",
 								},
 							},
 							SecurityContext: &apiv1.SecurityContext{
@@ -495,6 +518,41 @@ func (nj *TraceJob) Job() *batchv1.Job {
 			})
 	}
 
+	if nj.GoogleAppSecret != "" {
+
+		job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes,
+			apiv1.Volume{
+				Name: "google-application-secret",
+				VolumeSource: apiv1.VolumeSource{
+					Projected: &apiv1.ProjectedVolumeSource{
+						Sources: []apiv1.VolumeProjection{
+							{
+								Secret: &apiv1.SecretProjection{
+									LocalObjectReference: apiv1.LocalObjectReference{
+										Name: nj.GoogleAppSecret,
+									},
+								},
+							},
+						},
+					},
+				},
+			})
+
+		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(job.Spec.Template.Spec.Containers[0].VolumeMounts,
+			apiv1.VolumeMount{
+				Name:      "google-application-secret",
+				MountPath: GoogleAppKeyPath,
+				ReadOnly:  true,
+			})
+
+		job.Spec.Template.Spec.Containers[0].Env = append(job.Spec.Template.Spec.Containers[0].Env,
+			apiv1.EnvVar{
+				Name:  "GOOGLE_APPLICATION_CREDENTIALS",
+				Value: path.Join(GoogleAppKeyPath, GoogleAppKeyName),
+			})
+
+	}
+
 	return job
 }
 
@@ -522,9 +580,10 @@ func (nj *TraceJob) Meta() *metav1.ObjectMeta {
 	}
 }
 
-func int32Ptr(i int32) *int32 { return &i }
-func int64Ptr(i int64) *int64 { return &i }
-func boolPtr(b bool) *bool    { return &b }
+func int32Ptr(i int32) *int32                            { return &i }
+func int64Ptr(i int64) *int64                            { return &i }
+func boolPtr(b bool) *bool                               { return &b }
+func quantityPtr(r resource.Quantity) *resource.Quantity { return &r }
 
 func jobHostname(j batchv1.Job) (string, error) {
 	aff := j.Spec.Template.Spec.Affinity

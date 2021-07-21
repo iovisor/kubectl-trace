@@ -25,6 +25,7 @@ COPY pkg pkg
 
 # This buildkit feature reduces the build time from ~50s → 5s by preserving the compiler cache
 RUN --mount=type=cache,target=/root/.cache/go-build make _output/bin/trace-runner
+RUN --mount=type=cache,target=/root/.cache/go-build make _output/bin/trace-uploader
 
 FROM ubuntu:20.04
 
@@ -39,9 +40,11 @@ RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificat
 
 COPY --from=bpftrace /usr/bin/bpftrace /usr/bin/bpftrace
 COPY --from=gobuilder /go/src/github.com/iovisor/kubectl-trace/_output/bin/trace-runner /bin/trace-runner
+COPY --from=gobuilder /go/src/github.com/iovisor/kubectl-trace/_output/bin/trace-uploader /bin/trace-uploader
 
 # Inject some fake tracer 'programs' for integration testing.
 COPY /build/test/fake/success /usr/share/fake/success
+COPY /build/test/fake/output /usr/share/fake/output
 
 COPY /build/hooks/prestop /bin/hooks/prestop
 
