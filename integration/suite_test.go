@@ -18,9 +18,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -42,7 +45,7 @@ const RegistryWaitTimeout = 60
 
 const (
 	waitForDeleteTargetSeconds = 60
-	waitForTargetPodSeconds    = 30
+	waitForTargetPodSeconds    = 60
 	defaultMaxPods             = 110
 )
 
@@ -54,6 +57,7 @@ const (
 
 var (
 	ContainerDependencies = []string{
+		"quay.io/iovisor/target-ruby",
 		"quay.io/iovisor/kubectl-trace-init",
 	}
 )
@@ -80,6 +84,7 @@ type KubectlTraceSuite struct {
 	lastTest        string
 	namespaces      map[string]*TestNameSpaceInfo
 	targetNamespace string
+	rubyTarget      string
 }
 
 func init() {
@@ -128,7 +133,36 @@ func (k *KubectlTraceSuite) SetupSuite() {
 		k.tagAndPushIntegrationImage(image, "latest")
 	}
 
+	fmt.Println("Setting up targets...")
+	k.setupTargets()
+
 	fmt.Printf("\x1b[1mKUBECONFIG=%s\x1b[0m\n", k.kubeConfigPath)
+}
+
+func (k *KubectlTraceSuite) setupTargets() {
+	clientConfig, err := clientcmd.BuildConfigFromFlags("", k.kubeConfigPath)
+	assert.Nil(k.T(), err)
+
+	clientset, err := kubernetes.NewForConfig(clientConfig)
+	assert.Nil(k.T(), err)
+
+	k.cleanupPreviousRunNamespaces(IntegrationTargetNamespaceLabel)
+
+	namespace, err := generateNamespaceName("kubectl-trace-target")
+	require.Nil(k.T(), err)
+	k.targetNamespace = namespace
+
+	targetNamespaceLabels := map[string]string{
+		IntegrationTargetNamespaceLabel: "true",
+	}
+
+	namespaceSpec := &apiv1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: k.targetNamespace, Labels: targetNamespaceLabels}}
+	_, err = clientset.CoreV1().Namespaces().Create(context.TODO(), namespaceSpec, metav1.CreateOptions{})
+	require.Nil(k.T(), err)
+
+	podName, err := k.createRubyTarget(k.targetNamespace, "ruby", "first", "second")
+	k.rubyTarget = podName
+	require.Nil(k.T(), err)
 }
 
 func (k *KubectlTraceSuite) teardownTargets() {
@@ -242,6 +276,7 @@ func (k *KubectlTraceSuite) HandleStats(suiteName string, stats *suite.SuiteInfo
 }
 
 func (k *KubectlTraceSuite) TearDownSuite() {
+	k.teardownTargets()
 	if TeardownBackend != "" {
 		k.testBackend.TeardownBackend()
 	}
@@ -321,6 +356,89 @@ func (k *KubectlTraceSuite) runWithoutErrorWithStdin(input string, command strin
 	assert.Nilf(k.T(), err, "Command failed with output %s", combined)
 
 	return combined
+}
+
+func (k *KubectlTraceSuite) createRubyTarget(namespace, name string, args ...string) (string, error) {
+	image := fmt.Sprintf("localhost:%d/iovisor/target-ruby:latest", RegistryRemotePort)
+	command := append([]string{"./fork-from-args"}, args...)
+
+	clientConfig, err := clientcmd.BuildConfigFromFlags("", k.kubeConfigPath)
+	assert.Nil(k.T(), err)
+
+	clientset, err := kubernetes.NewForConfig(clientConfig)
+	assert.Nil(k.T(), err)
+
+	var deployment *appsv1.Deployment
+	var pod *apiv1.Pod
+	var w watch.Interface
+
+	deploymentSpec := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: int32Ptr(1),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "ruby",
+				},
+			},
+			Template: apiv1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "ruby",
+					},
+				},
+				Spec: apiv1.PodSpec{
+					TerminationGracePeriodSeconds: int64Ptr(0),
+					Containers: []apiv1.Container{
+						{
+							Name:    name,
+							Image:   image,
+							Command: command,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if deployment, err = clientset.AppsV1().Deployments(namespace).Create(context.TODO(), deploymentSpec, metav1.CreateOptions{}); err != nil {
+		return "", err
+	}
+
+	labelMap, _ := metav1.LabelSelectorAsMap(deployment.Spec.Selector)
+	var status apiv1.PodStatus
+	if w, err = clientset.CoreV1().Pods(namespace).Watch(context.TODO(), metav1.ListOptions{
+		Watch:         true,
+		LabelSelector: labels.SelectorFromSet(labelMap).String(),
+	}); err != nil {
+		return "", err
+	}
+
+	func() {
+		for {
+			select {
+			case events, ok := <-w.ResultChan():
+				if !ok {
+					return
+				}
+				pod = events.Object.(*apiv1.Pod)
+				status = pod.Status
+				if pod.Status.Phase != apiv1.PodPending {
+					w.Stop()
+				}
+			case <-time.After(waitForTargetPodSeconds * time.Second):
+				fmt.Println("timeout to wait for pod active")
+				w.Stop()
+			}
+		}
+	}()
+	if status.Phase != apiv1.PodRunning {
+		return "", fmt.Errorf("Pod is unavailable: %v", status.Phase)
+	}
+
+	return pod.Name, nil
 }
 
 func int32Ptr(i int32) *int32 { return &i }

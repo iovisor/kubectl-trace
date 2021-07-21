@@ -45,6 +45,7 @@ COPY --from=gobuilder /go/src/github.com/iovisor/kubectl-trace/_output/bin/trace
 # Inject some fake tracer 'programs' for integration testing.
 COPY /build/test/fake/success /usr/share/fake/success
 COPY /build/test/fake/output /usr/share/fake/output
+COPY /build/test/fake/pidtrace /usr/share/fake/pidtrace
 
 COPY /build/hooks/prestop /bin/hooks/prestop
 

@@ -45,6 +45,7 @@ type TraceJob struct {
 	ServiceAccount      string
 	Tracer              string
 	Target              TraceJobTarget
+	ProcessSelector     string
 	Output              string
 	Program             string
 	ProgramArgs         []string
@@ -242,6 +243,7 @@ func (nj *TraceJob) Job() *batchv1.Job {
 		"--tracer=" + nj.Tracer,
 		"--pod-uid=" + nj.Target.PodUID,
 		"--container-id=" + nj.Target.ContainerID,
+		"--process-selector=" + nj.ProcessSelector,
 		"--output=" + nj.Output,
 	}
 

@@ -68,7 +68,10 @@ var (
 	bpftracePatchWithoutTypeErrString      = "to use --patch you must also specify the --patch-type argument"
 	bpftracePatchTypeWithoutPatchErrString = "to use --patch-type you must specify the --patch argument"
 	tracerNotFound                         = "unknown tracer %s"
+	tracerNeededForSelectorErrString       = "tracer must be specified when specifying selector"
 	tracerNeededForOutputErrString         = "tracer must be specified when specifying output"
+
+	pidProcessSelectorRequiredForTracer = "a pid process selector must be specified for tracer %s"
 )
 
 // RunOptions ...
@@ -87,10 +90,12 @@ type RunOptions struct {
 	// TODO: clean this up
 	tracer          string
 	targetNamespace string
+	processSelector string
 	program         string
 	programArgs     []string
 	output          string
 	tracerDefined   bool
+	parsedSelector  *tracejob.ProcessSelector
 
 	googleAppSecret     string
 	serviceAccount      string
@@ -105,8 +110,8 @@ type RunOptions struct {
 
 	patch     string
 	patchType string
-	download  bool
 	attach    bool
+	download  bool
 
 	clientConfig *rest.Config
 }
@@ -157,6 +162,7 @@ func NewRunCommand(factory cmdutil.Factory, streams genericclioptions.IOStreams)
 	// flags for new generic interface
 	cmd.Flags().StringVar(&o.tracer, "tracer", "bpftrace", "Tracing system to use")
 	cmd.Flags().StringVar(&o.targetNamespace, "target-namespace", "", "Namespace in which the target pod exists (if applicable). Defaults to the namespace argument passed to kubectl.")
+	cmd.Flags().StringVar(&o.processSelector, "process-selector", "", "Process Selector (similar to a label query) to filter on")
 	cmd.Flags().StringVar(&o.output, "output", "stdout", "Where to send tracing output (stdout or local path)")
 	cmd.Flags().StringVar(&o.program, "program", o.program, "Program to execute")
 	cmd.Flags().StringArrayVar(&o.programArgs, "args", o.programArgs, "Additional arguments to pass on to program, repeat flag for multiple arguments")
@@ -180,6 +186,9 @@ func NewRunCommand(factory cmdutil.Factory, streams genericclioptions.IOStreams)
 func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 	// Selector can only be used in conjunction with tracer.
 	o.tracerDefined = cmd.Flag("tracer").Changed
+	if !o.tracerDefined && cmd.Flag("process-selector").Changed {
+		return fmt.Errorf(tracerNeededForSelectorErrString)
+	}
 
 	if !o.tracerDefined && cmd.Flag("output").Changed {
 		return fmt.Errorf(tracerNeededForOutputErrString)
@@ -189,6 +198,17 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 	case bpftrace, bcc, fake:
 	default:
 		return fmt.Errorf(tracerNotFound, o.tracer)
+	}
+
+	parsed, err := tracejob.NewProcessSelector(o.processSelector)
+	if err != nil {
+		return fmt.Errorf(err.Error())
+	}
+	o.parsedSelector = parsed
+
+	err = validateSelectorForTracer(o.tracer, o.parsedSelector)
+	if err != nil {
+		return err
 	}
 
 	containerFlagDefined := cmd.Flag("container").Changed
@@ -311,6 +331,7 @@ func (o *RunOptions) Run() error {
 		ServiceAccount:      o.serviceAccount,
 		ID:                  juid,
 		Target:              *target,
+		ProcessSelector:     o.processSelector,
 		Tracer:              o.tracer,
 		Output:              o.output,
 		Program:             o.program,
@@ -360,4 +381,17 @@ func (o *RunOptions) waitOnDownload(tj tracejob.TraceJob, coreClient corev1clien
 		return
 	}
 	fmt.Fprintf(o.IOStreams.Out, "downloaded %v\n", downloader.Filename(tj.ID))
+}
+
+func validateSelectorForTracer(tracer string, selector *tracejob.ProcessSelector) error {
+	switch tracer {
+	case bcc, bpftrace:
+	case fake:
+		if _, ok := selector.Pid(); !ok {
+			return fmt.Errorf(pidProcessSelectorRequiredForTracer, fake)
+		}
+	default:
+	}
+
+	return nil
 }

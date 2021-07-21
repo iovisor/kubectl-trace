@@ -97,6 +97,13 @@ image/build:
 	$(DOCKER) tag "$(IMAGE_TRACERUNNER_BRANCH)" "$(IMAGE_TRACERUNNER_TAG)"
 	$(DOCKER) tag "$(IMAGE_TRACERUNNER_BRANCH)" "$(IMAGE_TRACERUNNER_LATEST)"
 
+.PHONY: image/integration-support
+image/integration-support: image/ruby-target
+
+.PHONY: image/ruby-target
+image/ruby-target:
+	make -C build/test/ruby image/ruby-target
+
 .PHONY: image/push
 image/push:
 	$(DOCKER) push $(IMAGE_TRACERUNNER_BRANCH)
@@ -118,5 +125,5 @@ test:
 	$(GO) test -v -race $(TESTPACKAGES)
 
 .PHONY: integration
-integration: build image/build image/build-init
+integration: build image/build image/build-init image/integration-support
 	TEST_KUBECTLTRACE_BINARY=$(shell pwd)/$(kubectl_trace) $(GO) test ${LDFLAGS} -failfast -count=1 -v ./integration/... -run TestKubectlTraceSuite $(if $(TEST_ONLY),-testify.m $(TEST_ONLY),)

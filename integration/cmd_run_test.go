@@ -8,6 +8,8 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -54,14 +56,15 @@ func (k *KubectlTraceSuite) TestReturnErrOnErr() {
 }
 
 func (k *KubectlTraceSuite) TestGenericTracer() {
-	nodeName := k.GetTestNode()
-
+	selectors := []string{"pid=last", "exe=ruby"}
 	out := k.KubectlTraceCmd(
 		"run",
-		"node/"+nodeName,
+		"pod/"+k.rubyTarget,
+		"--target-namespace="+k.targetNamespace,
 		"--tracer=fake",
 		"--program=success",
 		"--deadline=5",
+		"--process-selector="+strings.Join(selectors, ","),
 		"--imagename="+k.RunnerImage())
 	assert.Regexp(k.T(), regexp.MustCompile("trace [a-f0-9-]{36} created"), out)
 
@@ -90,7 +93,7 @@ func (k *KubectlTraceSuite) TestDownloadOutput() {
 	assert.Nil(k.T(), err)
 	defer os.RemoveAll(outputDir) // clean up
 
-	out := k.KubectlTraceCmd("run", "node/"+nodeName, "--tracer=fake", "--imagename="+k.RunnerImage(), "--output="+outputDir, "--program=output")
+	out := k.KubectlTraceCmd("run", "node/"+nodeName, "--tracer=fake", "--process-selector=pid=last", "--imagename="+k.RunnerImage(), "--output="+outputDir, "--program=output")
 	k.assertDownloadedOutput(out, outputDir, func(outputDir string, contents []byte) {
 		// do nothing
 	})
@@ -102,9 +105,82 @@ func (k *KubectlTraceSuite) TestDownloadTeedOutput() {
 	defer os.RemoveAll(outputDir) // clean up
 
 	nodeName := k.GetTestNode()
-	out := k.KubectlTraceCmd("run", "node/"+nodeName, "--tracer=fake", "--imagename="+k.RunnerImage(), "--output="+outputDir+"/", "--program=output")
+	out := k.KubectlTraceCmd("run", "node/"+nodeName, "--tracer=fake", "--process-selector=pid=last", "--imagename="+k.RunnerImage(), "--output="+outputDir+"/", "--program=output")
 
 	lookFor := "trace-uploader pid found at /var/run/trace-uploader"
+	k.assertDownloadedOutput(out, outputDir, func(outputDir string, contents []byte) {
+		assert.Regexp(k.T(), regexp.MustCompile(lookFor), string(contents))
+	})
+}
+
+func (k *KubectlTraceSuite) TestProcessSelectorChoosesHighestPid() {
+	outputDir, err := ioutil.TempDir("", "kubectl-trace-output-download")
+	assert.Nil(k.T(), err)
+	defer os.RemoveAll(outputDir) // clean up
+
+	selectors := []string{"pid=last", "exe=ruby"}
+	out := k.KubectlTraceCmd(
+		"run",
+		"pod/"+k.rubyTarget,
+		"--target-namespace="+k.targetNamespace,
+		"--tracer=fake",
+		"--program=pidtrace",
+		"--args=$target_pid",
+		"--imagename="+k.RunnerImage(),
+		"--process-selector="+strings.Join(selectors, ","),
+		"--output="+outputDir)
+
+	re := regexp.MustCompile(`nspid: (?P<pid>[0-9]+)`)
+	k.assertDownloadedOutput(out, outputDir, func(outputDir string, contents []byte) {
+		matches := re.FindSubmatch(contents)
+		assert.Equal(k.T(), len(matches), 2)
+		pidIndex := re.SubexpIndex("pid")
+		assert.Less(k.T(), pidIndex, len(matches))
+		matchedPid := matches[pidIndex]
+		pid, err := strconv.Atoi(string(matchedPid))
+		assert.Nil(k.T(), err)
+		assert.Greater(k.T(), pid, 1)
+	})
+}
+
+func (k *KubectlTraceSuite) TestProcessSelectors() {
+	processSelectors := []string{
+		"pid=1",
+		"pid=last,exe=ruby",
+		"pid=last,comm=ruby",
+		"pid=last,cmdline=fork-from-args",
+		"pid=last,exe=ruby,cmdline=first",
+	}
+
+	lookFors := []string{
+		"nspid: 1",
+		"cmdline: second",
+		"cmdline: second",
+		"nspid: 1",
+		"cmdline: first",
+	}
+
+	for i, s := range processSelectors {
+		k.runProcessSelectorTest(s, lookFors[i])
+	}
+}
+
+func (k *KubectlTraceSuite) runProcessSelectorTest(processSelector string, lookFor string) {
+	outputDir, err := ioutil.TempDir("", "kubectl-trace-output-download")
+	assert.Nil(k.T(), err)
+	defer os.RemoveAll(outputDir) // clean up
+
+	out := k.KubectlTraceCmd(
+		"run",
+		"pod/"+k.rubyTarget,
+		"--target-namespace="+k.targetNamespace,
+		"--tracer=fake",
+		"--program=pidtrace",
+		"--args=$target_pid",
+		"--imagename="+k.RunnerImage(),
+		"--process-selector="+processSelector,
+		"--output="+outputDir)
+
 	k.assertDownloadedOutput(out, outputDir, func(outputDir string, contents []byte) {
 		assert.Regexp(k.T(), regexp.MustCompile(lookFor), string(contents))
 	})
