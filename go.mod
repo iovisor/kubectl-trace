@@ -6,6 +6,7 @@ require (
 	github.com/evanphx/json-patch v4.9.0+incompatible
 	github.com/fntlnz/mountinfo v0.0.0-20171106231217-40cb42681fad
 	github.com/kr/pretty v0.2.1 // indirect
+	github.com/spf13/afero v1.3.1
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1

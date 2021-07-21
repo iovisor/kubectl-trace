@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	yamlutil "k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/kubernetes"
 	batchv1typed "k8s.io/client-go/kubernetes/typed/batch/v1"
 	corev1typed "k8s.io/client-go/kubernetes/typed/core/v1"
 	"sigs.k8s.io/yaml"
@@ -34,11 +35,12 @@ type TraceJob struct {
 	ID                  types.UID
 	Namespace           string
 	ServiceAccount      string
-	Hostname            string
+	Tracer              string
+	Target              TraceJobTarget
 	Program             string
+	ProgramArgs         []string
 	PodUID              string
 	ContainerName       string
-	IsPod               bool
 	ImageNameTag        string
 	InitImageNameTag    string
 	FetchHeaders        bool
@@ -48,6 +50,13 @@ type TraceJob struct {
 	Status              TraceJobStatus
 	Patch               string
 	PatchType           string
+}
+
+func NewTraceJobClient(clientset kubernetes.Interface, namespace string) *TraceJobClient {
+	return &TraceJobClient{
+		JobClient:    clientset.BatchV1().Jobs(namespace),
+		ConfigClient: clientset.CoreV1().ConfigMaps(namespace),
+	}
 }
 
 // WithOutStream setup a file stream to output trace job operation information
@@ -141,7 +150,9 @@ func (t *TraceJobClient) GetJob(nf TraceJobFilter) ([]TraceJob, error) {
 			Name:      name,
 			ID:        types.UID(id),
 			Namespace: j.Namespace,
-			Hostname:  hostname,
+			Target: TraceJobTarget{
+				Node: hostname,
+			},
 			StartTime: j.Status.StartTime,
 			Status:    jobStatus(j),
 		}
@@ -193,42 +204,48 @@ func (t *TraceJobClient) DeleteJobs(nf TraceJobFilter) error {
 }
 
 func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
+	job, cm := nj.Job(), nj.ConfigMap()
 
-	bpfTraceCmd := []string{
+	// Optionally patch the job before creating it
+	if nj.PatchType != "" && nj.Patch != "" {
+		newJob, err := patchJobFile(job, nj.PatchType, nj.Patch)
+		if err != nil {
+			return nil, err
+		}
+		job = newJob
+	}
+
+	if _, err := t.ConfigClient.Create(context.Background(), cm, metav1.CreateOptions{}); err != nil {
+		return nil, err
+	}
+	return t.JobClient.Create(context.Background(), job, metav1.CreateOptions{})
+}
+
+func (nj *TraceJob) Job() *batchv1.Job {
+	traceCmd := []string{
 		"/bin/timeout",
 		"--preserve-status",
 		"--signal",
 		"INT",
 		strconv.FormatInt(nj.Deadline, 10),
 		"/bin/trace-runner",
-		"--program=/programs/program.bt",
+		"--tracer=" + nj.Tracer,
+		"--pod-uid=" + nj.Target.PodUID,
+		"--container-id=" + nj.Target.ContainerID,
 	}
 
-	if nj.IsPod {
-		bpfTraceCmd = append(bpfTraceCmd, "--inpod")
-		bpfTraceCmd = append(bpfTraceCmd, "--container="+nj.ContainerName)
-		bpfTraceCmd = append(bpfTraceCmd, "--poduid="+nj.PodUID)
+	if nj.Tracer == "bpftrace" {
+		traceCmd = append(traceCmd, "--program=/programs/program.bt")
+	} else {
+		traceCmd = append(traceCmd, "--program="+nj.Program)
 	}
 
-	commonMeta := metav1.ObjectMeta{
-		Name:      nj.Name,
-		Namespace: nj.Namespace,
-		Labels: map[string]string{
-			meta.TraceLabelKey:   nj.Name,
-			meta.TraceIDLabelKey: string(nj.ID),
-		},
-		Annotations: map[string]string{
-			meta.TraceLabelKey:   nj.Name,
-			meta.TraceIDLabelKey: string(nj.ID),
-		},
+	for _, arg := range nj.ProgramArgs {
+		traceCmd = append(traceCmd, "--args="+arg)
 	}
 
-	cm := &apiv1.ConfigMap{
-		ObjectMeta: commonMeta,
-		Data: map[string]string{
-			"program.bt": nj.Program,
-		},
-	}
+	commonMeta := *nj.Meta()
+	cm := nj.ConfigMap()
 
 	job := &batchv1.Job{
 		ObjectMeta: commonMeta,
@@ -283,7 +300,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 						apiv1.Container{
 							Name:    nj.Name,
 							Image:   nj.ImageNameTag,
-							Command: bpfTraceCmd,
+							Command: traceCmd,
 							TTY:     true,
 							Stdin:   true,
 							Resources: apiv1.ResourceRequirements{
@@ -337,7 +354,7 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 											apiv1.NodeSelectorRequirement{
 												Key:      "kubernetes.io/hostname",
 												Operator: apiv1.NodeSelectorOpIn,
-												Values:   []string{nj.Hostname},
+												Values:   []string{nj.Target.Node},
 											},
 										},
 									},
@@ -477,20 +494,32 @@ func (t *TraceJobClient) CreateJob(nj TraceJob) (*batchv1.Job, error) {
 				ReadOnly:  true,
 			})
 	}
-	if _, err := t.ConfigClient.Create(context.Background(), cm, metav1.CreateOptions{}); err != nil {
-		return nil, err
-	}
 
-	// Optionally patch the job before creating it
-	if nj.PatchType != "" && nj.Patch != "" {
-		newJob, err := patchJobFile(job, nj.PatchType, nj.Patch)
-		if err != nil {
-			return nil, err
-		}
-		job = newJob
-	}
+	return job
+}
 
-	return t.JobClient.Create(context.Background(), job, metav1.CreateOptions{})
+func (nj *TraceJob) ConfigMap() *apiv1.ConfigMap {
+	return &apiv1.ConfigMap{
+		ObjectMeta: *nj.Meta(),
+		Data: map[string]string{
+			"program.bt": nj.Program,
+		},
+	}
+}
+
+func (nj *TraceJob) Meta() *metav1.ObjectMeta {
+	return &metav1.ObjectMeta{
+		Name:      nj.Name,
+		Namespace: nj.Namespace,
+		Labels: map[string]string{
+			meta.TraceLabelKey:   nj.Name,
+			meta.TraceIDLabelKey: string(nj.ID),
+		},
+		Annotations: map[string]string{
+			meta.TraceLabelKey:   nj.Name,
+			meta.TraceIDLabelKey: string(nj.ID),
+		},
+	}
 }
 
 func int32Ptr(i int32) *int32 { return &i }
