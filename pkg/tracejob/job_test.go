@@ -1,75 +1,71 @@
 package tracejob
 
 import (
-	"reflect"
+	"context"
 	"testing"
 
-	batchv1 "k8s.io/api/batch/v1"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
-type patchTest struct {
-	patchType string
-	patch     []byte
+const (
+	testNamespace = "default"
+)
+
+type jobSuite struct {
+	suite.Suite
+	client *TraceJobClient
 }
 
-var patchJSON1 = []byte(`
-- op: replace
-  path: "/spec/backOffLimit"
-  value: 123
-- op: add
-  path: "/spec/template/hostPID"
-  value: true
-- op: remove
-  path: "/spec/completions"
-`)
-var patchJSON2 = []byte(`[
-  { "op": "replace", "path": "/spec/backOffLimit", "value": 123 },
-  { "op": "add", "path": "/spec/template/hostPID", "value": true },
-  { "op": "remove", "path": "/spec/completions"}
-]`)
-
-var patchMerge = []byte(`
-spec:
-  backoffLimit: 123
-  completions: null
-  template:
-    hostPID: true
-`)
-
-var testCases = []patchTest{
-	{patchType: "json", patch: patchJSON1},
-	{patchType: "json", patch: patchJSON2},
-	{patchType: "merge", patch: patchMerge},
-	{patchType: "strategic", patch: patchMerge},
+func TestJobSuite(t *testing.T) {
+	suite.Run(t, &jobSuite{})
 }
 
-func TestPatchJobJSON(t *testing.T) {
-	for _, c := range testCases {
-		job := getJob()
-		newJob, err := patchJob(job, c.patchType, c.patch)
-		if err != nil {
-			t.Error(err)
-		}
+func (j *jobSuite) SetupTest() {
+	j.client = NewTraceJobClient(fake.NewSimpleClientset(), testNamespace)
+}
 
-		// Update expected value
-		job.Spec.BackoffLimit = int32Ptr(123)
-		job.Spec.Template.Spec.HostPID = true
-		job.Spec.Completions = nil
-
-		if reflect.DeepEqual(job, newJob) {
-			t.Errorf("patch %s job does not match expected", c.patchType)
-		}
+func (j *jobSuite) TestCreateJob() {
+	testJobName := "test-basic-create"
+	tj := TraceJob{
+		Name: testJobName,
 	}
+
+	job, err := j.client.CreateJob(tj)
+
+	assert.Nil(j.T(), err)
+	assert.NotNil(j.T(), job)
+
+	joblist, err := j.client.JobClient.List(context.TODO(), metav1.ListOptions{})
+	assert.Nil(j.T(), err)
+	assert.NotNil(j.T(), joblist)
+
+	assert.Len(j.T(), joblist.Items, 1)
+	assert.Equal(j.T(), joblist.Items[0].Spec.Template.Spec.Containers[0].Name, testJobName)
 }
 
-func getJob() *batchv1.Job {
-	return &batchv1.Job{
-		Spec: batchv1.JobSpec{
-			ActiveDeadlineSeconds:   int64Ptr(60),
-			TTLSecondsAfterFinished: int32Ptr(5),
-			Parallelism:             int32Ptr(1),
-			Completions:             int32Ptr(1),
-			BackoffLimit:            int32Ptr(1),
-		},
+func (j *jobSuite) TestCreateJobWithGoogleAppSecret() {
+	testJobName := "test-create-with-google-app-secret"
+	tj := TraceJob{
+		Name:            testJobName,
+		GoogleAppSecret: "test-gcp-secret",
 	}
+
+	job, err := j.client.CreateJob(tj)
+
+	assert.Nil(j.T(), err)
+	assert.NotNil(j.T(), job)
+
+	joblist, err := j.client.JobClient.List(context.TODO(), metav1.ListOptions{})
+	assert.Nil(j.T(), err)
+	assert.NotNil(j.T(), joblist)
+
+	assert.Len(j.T(), joblist.Items, 1)
+	assert.Equal(j.T(), joblist.Items[0].Spec.Template.Spec.Containers[0].Name, testJobName)
+
+	assert.Len(j.T(), joblist.Items[0].Spec.Template.Spec.Containers[0].Env, 1)
+	assert.Equal(j.T(), joblist.Items[0].Spec.Template.Spec.Containers[0].Env[0].Name, "GOOGLE_APPLICATION_CREDENTIALS")
 }

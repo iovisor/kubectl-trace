@@ -1,6 +1,12 @@
 package integration
 
 import (
+	"archive/tar"
+	"io"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
 	"regexp"
 	"time"
 
@@ -8,6 +14,8 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 )
+
+var outputDownloadedPattern = regexp.MustCompile(`downloaded (?P<tarfile>kubectl-trace-[^.]+\.tar)`)
 
 type outputAsserter func(string, []byte)
 
@@ -73,4 +81,102 @@ func (k *KubectlTraceSuite) TestGenericTracer() {
 
 	assert.Equal(k.T(), 1, len(job.Status.Conditions))
 	assert.Equal(k.T(), "Complete", string(job.Status.Conditions[0].Type))
+}
+
+func (k *KubectlTraceSuite) TestDownloadOutput() {
+	nodeName := k.GetTestNode()
+
+	outputDir, err := ioutil.TempDir("", "kubectl-trace-output-download")
+	assert.Nil(k.T(), err)
+	defer os.RemoveAll(outputDir) // clean up
+
+	out := k.KubectlTraceCmd("run", "node/"+nodeName, "--tracer=fake", "--imagename="+k.RunnerImage(), "--output="+outputDir, "--program=output")
+	k.assertDownloadedOutput(out, outputDir, func(outputDir string, contents []byte) {
+		// do nothing
+	})
+}
+
+func (k *KubectlTraceSuite) TestDownloadTeedOutput() {
+	outputDir, err := ioutil.TempDir("", "kubectl-trace-output-download")
+	assert.Nil(k.T(), err)
+	defer os.RemoveAll(outputDir) // clean up
+
+	nodeName := k.GetTestNode()
+	out := k.KubectlTraceCmd("run", "node/"+nodeName, "--tracer=fake", "--imagename="+k.RunnerImage(), "--output="+outputDir+"/", "--program=output")
+
+	lookFor := "trace-uploader pid found at /var/run/trace-uploader"
+	k.assertDownloadedOutput(out, outputDir, func(outputDir string, contents []byte) {
+		assert.Regexp(k.T(), regexp.MustCompile(lookFor), string(contents))
+	})
+}
+
+func (k *KubectlTraceSuite) assertDownloadedOutput(out string, outputDir string, assertOutput outputAsserter) {
+	assert.Regexp(k.T(), outputDownloadedPattern, out)
+
+	matches := outputDownloadedPattern.FindSubmatch([]byte(out))
+	tarIdx := outputDownloadedPattern.SubexpIndex("tarfile")
+	tarfile := string(matches[tarIdx])
+	info, err := os.Stat(path.Join(outputDir, tarfile))
+	assert.Nil(k.T(), err)
+
+	// If a local output path is provided then intermediate directories might be created.
+	// Make sure that the tooling that creates those directories does not create one
+	// with the name of the tarball.
+	assert.False(k.T(), info.IsDir())
+	assert.Greater(k.T(), info.Size(), int64(0))
+
+	tempDir, err := ioutil.TempDir("", "kubectl-trace-integration-untar")
+	assert.Nil(k.T(), err)
+	defer os.RemoveAll(tempDir)
+
+	err = untar(path.Join(outputDir, tarfile), tempDir)
+	assert.Nil(k.T(), err)
+
+	outDir := path.Join(tempDir, "kubectl-trace")
+	stdoutLogPath := path.Join(outDir, "stdout.log")
+	_, err = os.Stat(stdoutLogPath)
+	assert.False(k.T(), os.IsNotExist(err))
+
+	contents, err := ioutil.ReadFile(stdoutLogPath)
+	assert.Nil(k.T(), err)
+	assertOutput(outDir, contents)
+}
+
+func untar(tarball, target string) error {
+	reader, err := os.Open(tarball)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	tarReader := tar.NewReader(reader)
+
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+
+		path := filepath.Join(target, header.Name)
+		info := header.FileInfo()
+		if info.IsDir() {
+			if err = os.MkdirAll(path, info.Mode()); err != nil {
+				return err
+			}
+			continue
+		}
+
+		os.MkdirAll(filepath.Dir(path), 0766) // FIXME error check
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode())
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		_, err = io.Copy(file, tarReader)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/iovisor/kubectl-trace/pkg/attacher"
+	"github.com/iovisor/kubectl-trace/pkg/downloader"
 	"github.com/iovisor/kubectl-trace/pkg/meta"
 	"github.com/iovisor/kubectl-trace/pkg/signals"
 	"github.com/iovisor/kubectl-trace/pkg/tracejob"
@@ -13,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
@@ -65,6 +68,7 @@ var (
 	bpftracePatchWithoutTypeErrString      = "to use --patch you must also specify the --patch-type argument"
 	bpftracePatchTypeWithoutPatchErrString = "to use --patch-type you must specify the --patch argument"
 	tracerNotFound                         = "unknown tracer %s"
+	tracerNeededForOutputErrString         = "tracer must be specified when specifying output"
 )
 
 // RunOptions ...
@@ -85,8 +89,10 @@ type RunOptions struct {
 	targetNamespace string
 	program         string
 	programArgs     []string
+	output          string
 	tracerDefined   bool
 
+	googleAppSecret     string
 	serviceAccount      string
 	imageName           string
 	initImageName       string
@@ -99,6 +105,7 @@ type RunOptions struct {
 
 	patch     string
 	patchType string
+	download  bool
 	attach    bool
 
 	clientConfig *rest.Config
@@ -150,10 +157,12 @@ func NewRunCommand(factory cmdutil.Factory, streams genericclioptions.IOStreams)
 	// flags for new generic interface
 	cmd.Flags().StringVar(&o.tracer, "tracer", "bpftrace", "Tracing system to use")
 	cmd.Flags().StringVar(&o.targetNamespace, "target-namespace", "", "Namespace in which the target pod exists (if applicable). Defaults to the namespace argument passed to kubectl.")
+	cmd.Flags().StringVar(&o.output, "output", "stdout", "Where to send tracing output (stdout or local path)")
 	cmd.Flags().StringVar(&o.program, "program", o.program, "Program to execute")
 	cmd.Flags().StringArrayVar(&o.programArgs, "args", o.programArgs, "Additional arguments to pass on to program, repeat flag for multiple arguments")
 
 	// global flags
+	cmd.Flags().StringVar(&o.googleAppSecret, "google-application-secret", o.googleAppSecret, "A secret containing a JSON formatted google service account key, for GOOGLE_APPLICATION_CREDENITALS. Used for GCS support.")
 	cmd.Flags().BoolVarP(&o.attach, "attach", "a", o.attach, "Whether or not to attach to the trace program once it is created")
 	cmd.Flags().StringVar(&o.serviceAccount, "serviceaccount", o.serviceAccount, "Service account to use to set in the pod spec of the kubectl-trace job")
 	cmd.Flags().StringVar(&o.imageName, "imagename", o.imageName, "Custom image for the tracerunner")
@@ -171,6 +180,10 @@ func NewRunCommand(factory cmdutil.Factory, streams genericclioptions.IOStreams)
 func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 	// Selector can only be used in conjunction with tracer.
 	o.tracerDefined = cmd.Flag("tracer").Changed
+
+	if !o.tracerDefined && cmd.Flag("output").Changed {
+		return fmt.Errorf(tracerNeededForOutputErrString)
+	}
 
 	switch o.tracer {
 	case bpftrace, bcc, fake:
@@ -194,6 +207,19 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 		break
 	default:
 		return fmt.Errorf(requiredArgErrString)
+	}
+
+	if len(o.output) == 0 {
+		return fmt.Errorf("output cannot be empty when specified")
+	}
+
+	switch {
+	case o.output == "stdout":
+	case o.output[0] == '/' || o.output[0] == '.':
+		o.download = true
+	case strings.HasPrefix(o.output, "gs://"):
+	default:
+		return fmt.Errorf("unknown output %s", o.output)
 	}
 
 	havePatch := cmd.Flag("patch").Changed
@@ -286,8 +312,10 @@ func (o *RunOptions) Run() error {
 		ID:                  juid,
 		Target:              *target,
 		Tracer:              o.tracer,
+		Output:              o.output,
 		Program:             o.program,
 		ProgramArgs:         o.programArgs,
+		GoogleAppSecret:     o.googleAppSecret,
 		ImageNameTag:        o.imageName,
 		InitImageNameTag:    o.initImageName,
 		FetchHeaders:        o.fetchHeaders,
@@ -304,6 +332,15 @@ func (o *RunOptions) Run() error {
 
 	fmt.Fprintf(o.IOStreams.Out, "trace %s created\n", tj.ID)
 
+	if o.download {
+		if o.attach {
+			go o.waitOnDownload(tj, clientset.CoreV1())
+		} else {
+			fmt.Fprintln(o.IOStreams.Out, "waiting for trace to be downloaded")
+			o.waitOnDownload(tj, clientset.CoreV1())
+		}
+	}
+
 	if o.attach {
 		ctx := context.Background()
 		ctx = signals.WithStandardSignals(ctx)
@@ -313,4 +350,14 @@ func (o *RunOptions) Run() error {
 	}
 
 	return nil
+}
+
+func (o *RunOptions) waitOnDownload(tj tracejob.TraceJob, coreClient corev1client.CoreV1Interface) {
+	d := downloader.New(coreClient, o.clientConfig)
+	err := d.Start(tj.ID, tj.Namespace, o.output, MetadataDir)
+	if err != nil {
+		fmt.Fprintf(o.IOStreams.ErrOut, "[downloader] %s\n", err.Error())
+		return
+	}
+	fmt.Fprintf(o.IOStreams.Out, "downloaded %v\n", downloader.Filename(tj.ID))
 }

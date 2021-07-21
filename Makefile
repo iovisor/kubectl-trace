@@ -53,6 +53,9 @@ ${kubectl_trace}:
 ${trace_runner}:
 	CGO_ENABLED=1 $(GO) build ${LDFLAGS} -o $@ ./cmd/trace-runner
 
+${trace_uploader}:
+	CGO_ENABLED=1 $(GO) build ${LDFLAGS} -o $@ ./cmd/trace-uploader
+
 .PHONY: cross
 cross:
 	IMAGE_NAME_TRACERUNNER=$(IMAGE_NAME_TRACERUNNER) GO111MODULE=on goreleaser --snapshot --rm-dist
