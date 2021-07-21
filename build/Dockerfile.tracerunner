@@ -1,6 +1,8 @@
 # syntax = docker/dockerfile:1.2
 ARG bpftraceversion=v0.13.0
+ARG bccversion=v0.21.0-focal-release
 FROM quay.io/iovisor/bpftrace:$bpftraceversion as bpftrace
+FROM quay.io/iovisor/bcc:$bccversion as bcc
 
 FROM golang:1.15-buster as gobuilder
 ARG GIT_ORG=iovisor
@@ -26,11 +28,20 @@ RUN --mount=type=cache,target=/root/.cache/go-build make _output/bin/trace-runne
 
 FROM ubuntu:20.04
 
+# Install bcc by copying apt packages from docker image
+COPY --from=bcc /root/bcc /tmp/bcc
+RUN  apt-get update && \
+  DEBIAN_FRONTEND=noninteractive apt-get install -y python python3 binutils libelf1 kmod && apt-get clean && \
+  dpkg -i /tmp/bcc/*.deb && rm -rf /tmp/bcc
+
 # Install CA certificates
 RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates && apt-get clean
 
 COPY --from=bpftrace /usr/bin/bpftrace /usr/bin/bpftrace
 COPY --from=gobuilder /go/src/github.com/iovisor/kubectl-trace/_output/bin/trace-runner /bin/trace-runner
+
+# Inject some fake tracer 'programs' for integration testing.
+COPY /build/test/fake/success /usr/share/fake/success
 
 COPY /build/hooks/prestop /bin/hooks/prestop
 
