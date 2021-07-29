@@ -339,39 +339,6 @@ kubectl trace run ip-180-12-0-152.ec2.internal -f read.bt --patch mypatch.json -
 
 Need more programs? Look [here](https://github.com/iovisor/bpftrace/tree/master/tools).
 
-## Status of the project
-
-:trophy: All the MVP goals are done!
-
-To consider this project (ready) the goals are:
-
-- [x] basic program run and attach
-- [x] list command to list running traces - command: `kubectl trace get`
-- [x] delete running traces
-- [x] run without attach
-- [x] attach command to attach only - command: `kubectl trace attach <program>`
-- [x] allow sending signals (probably requires a TTY), so that bpftrace commands can be notified to stop by the user before deletion and give back results
-
-
-**More things after the MVP:**
-
-<i>The stuff here had been implemented - YaY</i>
-
-<strike>The program is now limited to run programs only on your nodes but the idea is to have the ability to attach only to the user namespace of a pod, like:
-
-```
-kubectl trace run pod/<pod-name> -f read.bt
-```
-
-And even on a specific container
-
-```
-kubectl trace run pod/<pod-name> -c <container> f read.bt
-```
-
-So I would say, the next thing is to run bpftrace programs at a pod scope other than at node scope.</strike>
-
-
 ## Contributing
 
 Already pumped up to commit some code? Here are some resources to join the
