@@ -79,10 +79,10 @@ Expand-Archive "$PSScriptRoot\kubectl-trace.zip" -DestinationPath "$PSScriptRoot
 ### Source
 
 ```
-go get -u github.com/iovisor/kubectl-trace/cmd/kubectl-trace
+GO111MODULE=on go get github.com/iovisor/kubectl-trace/cmd/kubectl-trace@latest
 ```
 
-This will download and compile `kubectl-trace` so that you can use it as a kubectl plugin with `kubectl trace`
+This will download and compile `kubectl-trace` so that you can use it as a kubectl plugin with `kubectl trace`, note that you will need to be on a recent version of go which supports go modules.
 
 ### Packages
 
