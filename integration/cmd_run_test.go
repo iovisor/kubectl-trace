@@ -165,6 +165,53 @@ func (k *KubectlTraceSuite) TestProcessSelectors() {
 	}
 }
 
+func (k *KubectlTraceSuite) TestRunRbspyProcPid() {
+	outputDir, err := ioutil.TempDir("", "kubectl-trace-output-download")
+	assert.Nil(k.T(), err)
+	defer os.RemoveAll(outputDir) // clean up
+
+	selectors := []string{"pid=1"}
+
+	out := k.KubectlTraceCmd(
+		"run",
+		"pod/"+k.rubyTarget,
+		"--target-namespace="+k.targetNamespace,
+		"--tracer=rbspy",
+		"--deadline=5",
+		"--imagename="+k.RunnerImage(),
+		"--process-selector="+strings.Join(selectors, ","),
+		"--output="+outputDir)
+
+	lookFor := `Writing formatted output to (.*?)profile\.speedscope\.json`
+	k.assertDownloadedOutput(out, outputDir, func(outputDir string, contents []byte) {
+		assert.Regexp(k.T(), lookFor, string(contents))
+	})
+}
+
+func (k *KubectlTraceSuite) TestRunRbspyPostProcess() {
+	outputDir, err := ioutil.TempDir("", "kubectl-trace-output-download")
+	assert.Nil(k.T(), err)
+	defer os.RemoveAll(outputDir) // clean up
+
+	selectors := []string{"pid=1"}
+
+	out := k.KubectlTraceCmd(
+		"run",
+		"pod/"+k.rubyTarget,
+		"--target-namespace="+k.targetNamespace,
+		"--tracer=rbspy",
+		"--deadline=5",
+		"--imagename="+k.RunnerImage(),
+		"--process-selector="+strings.Join(selectors, ","),
+		"--output="+outputDir)
+
+	k.assertDownloadedOutput(out, outputDir, func(outputDir string, contents []byte) {
+		flamePath := path.Join(outputDir, "flamegraph.svg")
+		_, err = os.Stat(flamePath)
+		assert.False(k.T(), os.IsNotExist(err))
+	})
+}
+
 func (k *KubectlTraceSuite) runProcessSelectorTest(processSelector string, lookFor string) {
 	outputDir, err := ioutil.TempDir("", "kubectl-trace-output-download")
 	assert.Nil(k.T(), err)

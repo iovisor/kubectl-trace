@@ -189,13 +189,12 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 	if !o.tracerDefined && cmd.Flag("process-selector").Changed {
 		return fmt.Errorf(tracerNeededForSelectorErrString)
 	}
-
 	if !o.tracerDefined && cmd.Flag("output").Changed {
 		return fmt.Errorf(tracerNeededForOutputErrString)
 	}
 
 	switch o.tracer {
-	case bpftrace, bcc, fake:
+	case bpftrace, bcc, rbspy, fake:
 	default:
 		return fmt.Errorf(tracerNotFound, o.tracer)
 	}
@@ -389,6 +388,10 @@ func validateSelectorForTracer(tracer string, selector *tracejob.ProcessSelector
 	case fake:
 		if _, ok := selector.Pid(); !ok {
 			return fmt.Errorf(pidProcessSelectorRequiredForTracer, fake)
+		}
+	case rbspy:
+		if _, ok := selector.Pid(); !ok {
+			return fmt.Errorf(pidProcessSelectorRequiredForTracer, rbspy)
 		}
 	default:
 	}

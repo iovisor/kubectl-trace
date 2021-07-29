@@ -1,8 +1,10 @@
 # syntax = docker/dockerfile:1.2
 ARG bpftraceversion=v0.13.0
 ARG bccversion=v0.21.0-focal-release
+ARG rbspyversion=0.8.0
 FROM quay.io/iovisor/bpftrace:$bpftraceversion as bpftrace
 FROM quay.io/iovisor/bcc:$bccversion as bcc
+FROM rbspy/rbspy:$rbspyversion-gnu as rbspy
 
 FROM golang:1.15-buster as gobuilder
 ARG GIT_ORG=iovisor
@@ -39,6 +41,7 @@ RUN  apt-get update && \
 RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates && apt-get clean
 
 COPY --from=bpftrace /usr/bin/bpftrace /usr/bin/bpftrace
+COPY --from=rbspy /usr/bin/rbspy /usr/bin/rbspy
 COPY --from=gobuilder /go/src/github.com/iovisor/kubectl-trace/_output/bin/trace-runner /bin/trace-runner
 COPY --from=gobuilder /go/src/github.com/iovisor/kubectl-trace/_output/bin/trace-uploader /bin/trace-uploader
 

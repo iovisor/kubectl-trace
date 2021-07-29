@@ -36,6 +36,7 @@ const (
 
 	bpftrace = "bpftrace"
 	bcc      = "bcc"
+	rbspy    = "rbspy"
 	fake     = "fake"
 )
 
@@ -55,7 +56,7 @@ const (
 
 type TraceRunnerOptions struct {
 	// The tracing system to use.
-	// tracer = bpftrace | bcc | fake
+	// tracer = bpftrace | bcc | rbspy | fake
 	tracer string
 
 	podUID string
@@ -128,9 +129,8 @@ func NewTraceRunnerCommand() *cobra.Command {
 }
 
 func (o *TraceRunnerOptions) Validate(cmd *cobra.Command, args []string) error {
-
 	switch o.tracer {
-	case bpftrace, bcc, fake:
+	case bpftrace, bcc, rbspy, fake:
 	default:
 		return fmt.Errorf("unknown tracer %s", o.tracer)
 	}
@@ -156,6 +156,21 @@ func (o *TraceRunnerOptions) Validate(cmd *cobra.Command, args []string) error {
 	}
 	o.parsedSelector = parsed
 
+	// TODO: unify this logic with run.go in a central selector validator?
+	switch o.tracer {
+	case bpftrace, bcc:
+	case fake:
+		if _, ok := o.parsedSelector.Pid(); !ok {
+			return fmt.Errorf(pidProcessSelectorRequiredForTracer, fake)
+		}
+	case rbspy:
+		if _, ok := o.parsedSelector.Pid(); !ok {
+			return fmt.Errorf(pidProcessSelectorRequiredForTracer, rbspy)
+		}
+	default:
+		panic("We shouldn't get here; have you accounted for all tracer types?")
+	}
+
 	return nil
 }
 
@@ -168,12 +183,15 @@ func (o *TraceRunnerOptions) Run() error {
 	var err error
 	var binary *string
 	var args []string
+	var pp postProcessor
 
 	switch o.tracer {
 	case bpftrace:
 		binary, args, err = o.prepBpfTraceCommand()
 	case bcc:
 		binary, args, err = o.prepBccCommand()
+	case rbspy:
+		binary, args, pp, err = o.prepRbspyCommand()
 	case fake:
 		binary, args, err = o.prepFakeCommand()
 	}
@@ -216,8 +234,19 @@ func (o *TraceRunnerOptions) Run() error {
 	}
 
 	err = runTraceCommand(c, o.outputType != stdout)
-	if err != nil {
-		return err
+
+	if pp != nil {
+		binary, args, err := pp()
+		if err != nil {
+			return fmt.Errorf("failed to determine post processor command for tracer %s %v", o.tracer, err)
+		} else {
+			fmt.Printf("Running post processor %s %v \n", binary, args)
+			postProcess := exec.Command(binary, args...)
+			err = runTraceCommand(postProcess, o.outputType != stdout)
+			if err != nil {
+				return fmt.Errorf("failed to execute post processor command for tracer %s %v", o.tracer, err)
+			}
+		}
 	}
 
 	switch o.outputType {
@@ -310,6 +339,25 @@ func (o *TraceRunnerOptions) prepBccCommand() (*string, []string, error) {
 	}
 
 	return &program, args, nil
+}
+
+func (o *TraceRunnerOptions) prepRbspyCommand() (*string, []string, postProcessor, error) {
+	program := rbspy
+	args := []string{"record", "--format", "speedscope", "--file", path.Join(MetadataDir, "profile.speedscope.json"), "--raw-file", path.Join(MetadataDir, "rbspy.raw.gz"), "--pid"}
+
+	foundPid, err := findHostPid(o.podUID, o.containerID, o.parsedSelector)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	args = append(args, foundPid)
+	return &program, args, o.prepRbspyPostprocessCommand, nil
+}
+
+func (o *TraceRunnerOptions) prepRbspyPostprocessCommand() (string, []string, error) {
+	program := rbspy
+	args := []string{"report", "--format", "flamegraph", "--input", path.Join(MetadataDir, "rbspy.raw.gz"), "--output", path.Join(MetadataDir, "flamegraph.svg")}
+	return program, args, nil
 }
 
 func (o *TraceRunnerOptions) prepFakeCommand() (*string, []string, error) {
