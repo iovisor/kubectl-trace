@@ -49,6 +49,7 @@ import (
 	"github.com/iovisor/kubectl-trace/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
@@ -137,6 +138,45 @@ func ResolveTraceJobTarget(clientset kubernetes.Interface, resource, container, 
 		if err != nil {
 			return nil, err
 		}
+		return &target, nil
+	case "deploy", "deployment":
+		deployClient := clientset.AppsV1().Deployments(targetNamespace)
+		deployment, err := deployClient.Get(context.TODO(), resourceID, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		labelMap, err := metav1.LabelSelectorAsMap(deployment.Spec.Selector)
+		if err != nil {
+			return nil, err
+		}
+		podClient := clientset.CoreV1().Pods(targetNamespace)
+		pods, err := podClient.List(context.TODO(), metav1.ListOptions{LabelSelector: labels.SelectorFromSet(labelMap).String()})
+		if err != nil {
+			return nil, err
+		}
+
+		var selectedPod *v1.Pod
+		for _, pod := range pods.Items {
+			allocatable, err := NodeIsAllocatable(clientset, pod.Spec.NodeName)
+			if err != nil {
+				continue
+			}
+
+			if allocatable {
+				selectedPod = &pod
+				break
+			}
+		}
+
+		if selectedPod == nil {
+			return nil, errors.NewErrorUnallocatable(fmt.Sprintf("No pods for deployment %s were on allocatable nodes", resourceID))
+		}
+
+		err = resolvePodToTarget(podClient, selectedPod.Name, container, targetNamespace, &target)
+		if err != nil {
+			return nil, err
+		}
+
 		return &target, nil
 	default:
 		return nil, errors.NewErrorInvalid(fmt.Sprintf("Unsupported resource type %s for %s\n", resourceType, resourceID))

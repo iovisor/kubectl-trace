@@ -86,6 +86,37 @@ func (k *KubectlTraceSuite) TestGenericTracer() {
 	assert.Equal(k.T(), "Complete", string(job.Status.Conditions[0].Type))
 }
 
+func (k *KubectlTraceSuite) TestDeploymentTarget() {
+	selectors := []string{"pid=last", "exe=ruby"}
+	out := k.KubectlTraceCmd(
+		"run",
+		"deploy/ruby",
+		"--target-namespace="+k.targetNamespace,
+		"--tracer=fake",
+		"--program=success",
+		"--deadline=5",
+		"--process-selector="+strings.Join(selectors, ","),
+		"--imagename="+k.RunnerImage())
+	assert.Regexp(k.T(), regexp.MustCompile("trace [a-f0-9-]{36} created"), out)
+
+	var job batchv1.Job
+
+	for {
+		jobs := k.GetJobs().Items
+		assert.Equal(k.T(), 1, len(jobs))
+
+		job = jobs[0]
+		if len(job.Status.Conditions) > 0 {
+			break // on the first condition
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+
+	assert.Equal(k.T(), 1, len(job.Status.Conditions))
+	assert.Equal(k.T(), "Complete", string(job.Status.Conditions[0].Type))
+}
+
 func (k *KubectlTraceSuite) TestDownloadOutput() {
 	nodeName := k.GetTestNode()
 
