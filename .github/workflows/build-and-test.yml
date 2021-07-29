@@ -54,6 +54,7 @@ jobs:
     - name: Run integration tests
       env: ${{matrix.env}}
       run: |
+        sudo sysctl net/netfilter/nf_conntrack_max=131072 # https://github.com/kubernetes-sigs/kind/issues/2240
         make integration
 
 #    - name: Debug failure over SSH
