@@ -23,7 +23,6 @@ of [bpftrace](https://github.com/iovisor/bpftrace) programs in your Kubernetes c
   * [Executing in a cluster using Pod Security Policies](#executing-in-a-cluster-using-pod-security-policies)
   * [Using a patch to customize the trace job](#using-a-patch-to-customize-the-trace-job)
   * [More bpftrace programs](#more-bpftrace-programs)
-- [Status of the project](#status-of-the-project)
 - [Contributing](#contributing)
 
 <!-- tocstop -->
