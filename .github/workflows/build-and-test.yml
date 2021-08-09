@@ -88,6 +88,8 @@ jobs:
       env:
         QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
       run: |
+          git status --porcelain --untracked-files=no
+          git reset --hard
           git clean -f -d
           if [[ "${{ github.ref }}" == refs/heads/* ]];then
             ./build/scripts/ci-release-image.sh ${{ github.ref }}
