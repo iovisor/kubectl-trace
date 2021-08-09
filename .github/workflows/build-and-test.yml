@@ -88,6 +88,7 @@ jobs:
       env:
         QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
       run: |
+          git clean -f -d
           if [[ "${{ github.ref }}" == refs/heads/* ]];then
             ./build/scripts/ci-release-image.sh ${{ github.ref }}
           else
