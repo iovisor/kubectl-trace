@@ -1,6 +1,6 @@
 name: Kubectl trace build and tests
 
-on: [pull_request]
+on: [push, pull_request]
 
 jobs:
   build_and_test:
@@ -40,9 +40,13 @@ jobs:
       run: |
         make _output/bin/kubectl-trace
 
-    - name: Build CI image
+    - name: Build docker images
       run: |
-       ./build/scripts/ci-build-image.sh ${{ github.head_ref }}
+          if [[ "${{ github.ref }}" == refs/heads/* ]];then
+            ./build/scripts/ci-build-image.sh ${{ github.ref }}
+          else
+            ./build/scripts/ci-build-image.sh ${{ github.head_ref }}
+          fi
 
     - name: Install minikube
       env: ${{matrix.env}}
@@ -84,4 +88,8 @@ jobs:
       env:
         QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
       run: |
-        ./build/scripts/ci-release-image.sh ${{ github.head_ref }}
+          if [[ "${{ github.ref }}" == refs/heads/* ]];then
+            ./build/scripts/ci-release-image.sh ${{ github.ref }}
+          else
+            ./build/scripts/ci-release-image.sh ${{ github.head_ref }}
+          fi
