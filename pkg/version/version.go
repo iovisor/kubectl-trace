@@ -13,17 +13,21 @@ var versionFormat = "git commit: %s\nbuild date: %s"
 
 // GitCommit returns the git commit
 func GitCommit() string {
+	if gitCommit == "" {
+		gitCommit = "unspecified"
+	}
 	return gitCommit
 }
 
 // Time returns the build time
 func Time() *time.Time {
+	now := time.Now()
 	if len(buildTime) == 0 {
-		return nil
+		return &now
 	}
 	i, err := strconv.ParseInt(buildTime, 10, 64)
 	if err != nil {
-		return nil
+		return &now
 	}
 	t := time.Unix(i, 0)
 	return &t
