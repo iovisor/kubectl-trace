@@ -77,11 +77,24 @@ Expand-Archive "$PSScriptRoot\kubectl-trace.zip" -DestinationPath "$PSScriptRoot
 
 ### Source
 
+Using go modules, you can build kubectl-trace at any git tag:
+
 ```
 GO111MODULE=on go get github.com/iovisor/kubectl-trace/cmd/kubectl-trace@latest
 ```
 
 This will download and compile `kubectl-trace` so that you can use it as a kubectl plugin with `kubectl trace`, note that you will need to be on a recent version of go which supports go modules.
+
+To keep track of the ref you used to build, you can add an ldflag at build time to set this to match the ref provided to go modules:
+
+```
+> GO111MODULE=on go get -ldflags='-X github.com/iovisor/kubectl-trace/pkg/version.gitCommit=v0.1.2' github.com/iovisor/kubectl-trace/cmd/kubectl-trace@v0.1.2
+> $GOHOME/bin/kubectl-trace version
+git commit: v0.1.2
+build date: 2021-08-10 12:38:37.921341766 -0400 EDT m=+0.034327432
+```
+
+**Note:** It is recommended you build tagged revisions only if you are looking for stability. Building branches such as `master` or the `latest` tag may result in a more unstable build which has received less QA than a tagged release.
 
 ### Packages
 
