@@ -61,6 +61,7 @@ install_cos_linux_headers()
     SOURCES_DIR="${TARGET_DIR}/linux-lakitu-${BUILD_ID}"
 
     if [[ ! -e "${SOURCES_DIR}/.installed" ]]; then
+	mkdir -p ${SOURCES_DIR}
       echo "Installing kernel headers for COS build ${BUILD_ID}"
       time fetch_cos_linux_sources
       time generate_headers
@@ -77,6 +78,7 @@ install_generic_linux_headers()
   SOURCES_DIR="${TARGET_DIR}/linux-generic-${KERNEL_VERSION}"
 
   if [[ ! -e "${SOURCES_DIR}/.installed" ]];then
+	mkdir -p ${SOURCES_DIR}
     echo "Installing kernel headers for generic kernel"
     time fetch_generic_linux_sources
     time generate_headers
