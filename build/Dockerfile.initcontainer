@@ -1,4 +1,4 @@
-FROM alpine:3.8
+FROM alpine:3.15
 RUN apk add --update \
     bash \
     bc \
@@ -8,6 +8,10 @@ RUN apk add --update \
     curl \
     elfutils-dev \
     linux-headers \
+	gmp-dev \
+	mpc1-dev \
+	mpfr-dev \
+	python3 \
     make \
     openssl-dev
 
