@@ -14,6 +14,18 @@ spec:
     bin: kubectl-trace
   - selector:
       matchLabels:
+        os: darwin
+        arch: arm64
+    {{addURIAndSha "https://github.com/iovisor/kubectl-trace/releases/download/{{ .TagName }}/kubectl-trace_{{ .TagName }}_darwin_arm64.tar.gz" .TagName }}
+    bin: kubectl-trace
+  - selector:
+      matchLabels:
+        os: linux
+        arch: arm64
+    {{addURIAndSha "https://github.com/iovisor/kubectl-trace/releases/download/{{ .TagName }}/kubectl-trace_{{ .TagName }}_linux_arm64.tar.gz" .TagName }}
+    bin: kubectl-trace
+  - selector:
+      matchLabels:
         os: linux
         arch: amd64
     {{addURIAndSha "https://github.com/iovisor/kubectl-trace/releases/download/{{ .TagName }}/kubectl-trace_{{ .TagName }}_linux_amd64.tar.gz" .TagName }}

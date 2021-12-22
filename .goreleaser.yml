@@ -10,6 +10,7 @@ builds:
     - windows
     goarch:
     - amd64
+    - arm64
     - 386
     main: ./cmd/kubectl-trace
     env:
@@ -28,6 +29,7 @@ builds:
     - windows
     goarch:
     - amd64
+    - arm64
     - 386
     main: ./cmd/trace-runner
     env:
