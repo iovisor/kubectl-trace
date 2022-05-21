@@ -49,7 +49,7 @@ fetch_generic_linux_sources()
 
   echo "Fetching upstream kernel sources for ${kernel_version}."
   mkdir -p "${BUILD_DIR}"
-  curl -sL "https://www.kernel.org/pub/linux/kernel/v${major_version}.x/linux-$kernel_version.tar.gz" \
+  curl -sSL "https://www.kernel.org/pub/linux/kernel/v${major_version}.x/linux-$kernel_version.tar.gz" \
     | tar --strip-components=1 -xzf - -C "${BUILD_DIR}"
 }
 
