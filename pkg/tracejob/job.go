@@ -285,14 +285,6 @@ func (nj *TraceJob) Job() *batchv1.Job {
 							},
 						},
 						apiv1.Volume{
-							Name: "usr-host",
-							VolumeSource: apiv1.VolumeSource{
-								HostPath: &apiv1.HostPathVolumeSource{
-									Path: "/usr",
-								},
-							},
-						},
-						apiv1.Volume{
 							Name: "modules-host",
 							VolumeSource: apiv1.VolumeSource{
 								HostPath: &apiv1.HostPathVolumeSource{
@@ -506,7 +498,17 @@ func (nj *TraceJob) Job() *batchv1.Job {
 			})
 
 	} else {
-		// If we aren't downloading headers, unconditionally used the ones linked in /lib/modules
+		// If we aren't downloading headers, unconditionally use the ones linked in /lib/modules
+		job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes,
+			apiv1.Volume{
+				Name: "usr-host",
+				VolumeSource: apiv1.VolumeSource{
+					HostPath: &apiv1.HostPathVolumeSource{
+						Path: "/usr",
+					},
+				},
+			})
+
 		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(job.Spec.Template.Spec.Containers[0].VolumeMounts,
 			apiv1.VolumeMount{
 				Name:      "usr-host",
