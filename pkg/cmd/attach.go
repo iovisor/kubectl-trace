@@ -139,7 +139,7 @@ func (o *AttachOptions) Run() error {
 	}
 
 	if len(jobs) == 0 {
-		return fmt.Errorf("no trace found with the provided criterias")
+		return fmt.Errorf("no trace found with the provided criteria")
 	}
 
 	job := jobs[0]
