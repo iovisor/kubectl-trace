@@ -121,16 +121,18 @@ func ResolveTraceJobTarget(clientset kubernetes.Interface, resource, container, 
 		}
 		target.Node = val
 
-		return &target, nil
 	case "pod":
 		podClient := clientset.CoreV1().Pods(targetNamespace)
 		pod, err := podClient.Get(context.TODO(), resourceID, metav1.GetOptions{})
 		if err != nil {
-			return nil, errors.NewErrorInvalid(fmt.Sprintf("Could not locate pod %s", resourceID))
+			return nil, errors.NewErrorInvalid(fmt.Sprintf("Could not locate pod %s, err: %v", resourceID, err))
 		}
 
 		allocatable, err := NodeIsAllocatable(clientset, pod.Spec.NodeName)
-		if err != nil || !allocatable {
+		if err != nil {
+			return nil, err
+		}
+		if !allocatable {
 			return nil, errors.NewErrorUnallocatable(fmt.Sprintf("Pod %s is not scheduled on an allocatable node", resourceID))
 		}
 
@@ -138,7 +140,7 @@ func ResolveTraceJobTarget(clientset kubernetes.Interface, resource, container, 
 		if err != nil {
 			return nil, err
 		}
-		return &target, nil
+
 	case "deploy", "deployment":
 		deployClient := clientset.AppsV1().Deployments(targetNamespace)
 		deployment, err := deployClient.Get(context.TODO(), resourceID, metav1.GetOptions{})
@@ -177,7 +179,6 @@ func ResolveTraceJobTarget(clientset kubernetes.Interface, resource, container, 
 			return nil, err
 		}
 
-		return &target, nil
 	default:
 		return nil, errors.NewErrorInvalid(fmt.Sprintf("Unsupported resource type %s for %s\n", resourceType, resourceID))
 	}
@@ -197,8 +198,7 @@ func NodeIsAllocatable(clientset kubernetes.Interface, hostname string) (bool, e
 
 	allPods, err := allPodsForNode(clientset, hostname)
 	if err != nil {
-		fmt.Errorf("could not retrieve pods %v", err)
-		return false, err
+		return false, fmt.Errorf("could not retrieve pods %v", err)
 	}
 
 	var nonTerminalPods []*v1.Pod
@@ -216,15 +216,13 @@ func NodeIsAllocatable(clientset kubernetes.Interface, hostname string) (bool, e
 	node, err := nodeClient.Get(context.TODO(), hostname, metav1.GetOptions{})
 
 	if err != nil {
-		fmt.Errorf("could not get node object %v", err)
-		return false, err
+		return false, fmt.Errorf("could not get node object %v", err)
 	}
 
 	maxPods, ok := node.Status.Allocatable.Pods().AsInt64()
 	if !ok {
 		err = fmt.Errorf("quantity was not an integer: %s", node.Status.Allocatable.Pods().String())
-		fmt.Errorf("could not parse the number of allocatable pods %v", err)
-		return false, err
+		return false, fmt.Errorf("could not parse the number of allocatable pods %v", err)
 	}
 
 	if len(nonTerminalPods) >= int(maxPods) {
