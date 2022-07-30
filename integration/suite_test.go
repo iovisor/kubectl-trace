@@ -337,7 +337,7 @@ func (k *KubectlTraceSuite) runWithoutErrorWithStdin(input string, command strin
 	if input != "" {
 		stdin, err := comm.StdinPipe()
 		if err != nil {
-			assert.Nilf(k.T(), err, "Could not create the commmand: %s", err.Error())
+			assert.Nilf(k.T(), err, "Could not create the command: %s", err.Error())
 		}
 		go func() {
 			defer stdin.Close()

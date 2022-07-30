@@ -42,14 +42,14 @@ fetch_generic_linux_sources()
   kernel_version="$(echo "${KERNEL_VERSION}" | awk -vFS='[-+]' '{ print $1 }')"
   major_version="$(echo "${KERNEL_VERSION}" | awk -vFS=. '{ print $1 }')"
 
-  # Remove the '.0' as the intial kernel major release isn't published with a patch number. 
+  # Remove the '.0' as the initial kernel major release isn't published with a patch number.
   if [[ $kernel_version == *.0 ]]; then
     kernel_version=$(echo $kernel_version | rev | sed s/0\.// | rev)
   fi
 
   echo "Fetching upstream kernel sources for ${kernel_version}."
   mkdir -p "${BUILD_DIR}"
-  curl -sL "https://www.kernel.org/pub/linux/kernel/v${major_version}.x/linux-$kernel_version.tar.gz" \
+  curl -sSL "https://www.kernel.org/pub/linux/kernel/v${major_version}.x/linux-$kernel_version.tar.gz" \
     | tar --strip-components=1 -xzf - -C "${BUILD_DIR}"
 }
 
