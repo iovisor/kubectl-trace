@@ -67,7 +67,7 @@ jobs:
     - name: Build cross binaries
       if: github.ref == 'refs/heads/master'
       run: |
-        curl -LO https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_amd64.deb && sudo dpkg -i goreleaser_amd64.deb
+        go install github.com/goreleaser/goreleaser@latest
         make cross
 
     - uses: actions/upload-artifact@v1
