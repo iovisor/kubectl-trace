@@ -261,7 +261,7 @@ func (o *RunOptions) Validate(cmd *cobra.Command, args []string) error {
 		if (evalDefined && filenameDefined) || (evalDefined && programDefined) || (filenameDefined && programDefined) {
 			return fmt.Errorf(bpftraceDoubleErrString)
 		}
-		if (evalDefined && len(o.eval) == 0) || (filenameDefined && len(o.program) == 0) || (programDefined && len(o.program) == 0) {
+		if (evalDefined && len(o.eval) == 0) || (filenameDefined && len(o.filename) == 0) || (programDefined && len(o.program) == 0) {
 			return fmt.Errorf(bpftraceEmptyErrString)
 		}
 	default:
