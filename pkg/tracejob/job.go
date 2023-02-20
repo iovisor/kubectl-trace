@@ -311,7 +311,7 @@ func (nj *TraceJob) Job() *batchv1.Job {
 					},
 					Containers: []apiv1.Container{
 						apiv1.Container{
-							Name:    nj.Name,
+							Name:    "kubectl-trace",
 							Image:   nj.ImageNameTag,
 							Command: traceCmd,
 							TTY:     true,

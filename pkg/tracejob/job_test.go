@@ -44,7 +44,7 @@ func (j *jobSuite) TestCreateJob() {
 	assert.NotNil(j.T(), joblist)
 
 	assert.Len(j.T(), joblist.Items, 1)
-	assert.Equal(j.T(), joblist.Items[0].Spec.Template.Spec.Containers[0].Name, testJobName)
+	assert.Equal(j.T(), joblist.Items[0].Spec.Template.Spec.Containers[0].Name, "kubectl-trace")
 }
 
 func (j *jobSuite) TestCreateJobWithGoogleAppSecret() {
@@ -64,7 +64,7 @@ func (j *jobSuite) TestCreateJobWithGoogleAppSecret() {
 	assert.NotNil(j.T(), joblist)
 
 	assert.Len(j.T(), joblist.Items, 1)
-	assert.Equal(j.T(), joblist.Items[0].Spec.Template.Spec.Containers[0].Name, testJobName)
+	assert.Equal(j.T(), joblist.Items[0].Spec.Template.Spec.Containers[0].Name, "kubectl-trace")
 
 	assert.Len(j.T(), joblist.Items[0].Spec.Template.Spec.Containers[0].Env, 1)
 	assert.Equal(j.T(), joblist.Items[0].Spec.Template.Spec.Containers[0].Env[0].Name, "GOOGLE_APPLICATION_CREDENTIALS")
