@@ -4,6 +4,7 @@ RUN apk add --update \
     bc \
     build-base \
     bison \
+    diffutils \
     flex \
     curl \
     elfutils-dev \
