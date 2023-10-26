@@ -27,7 +27,7 @@ generate_headers()
 }
 
 fetch_cos_linux_sources()
-{S
+{
   echo "Fetching upstream kernel sources."
   mkdir -p "${BUILD_DIR}"
   curl -s "https://storage.googleapis.com/cos-tools/${BUILD_ID}/kernel-src.tar.gz" \
