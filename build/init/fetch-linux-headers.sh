@@ -19,8 +19,13 @@ generate_headers()
   elif [ -e "/boot.host/config-${KERNEL_VERSION}" ]; then
     cp "/boot.host/config-${KERNEL_VERSION}" .config
   fi
-  make ARCH=x86 oldconfig > /dev/null
-  make ARCH=x86 prepare > /dev/null
+
+  arch="$(uname -m)"
+  [[ "${arch}" == "x86_64" ]] && arch="x86"
+  [[ "${arch}" == "aarch64" ]] && arch="arm64"
+
+  make ARCH="${arch}" oldconfig > /dev/null
+  make ARCH="${arch}" prepare > /dev/null
 
   # Clean up abundant non-header files to speed-up copying
   find "${BUILD_DIR}" -regex '.*\.c\|.*\.txt\|.*Makefile\|.*Build\|.*Kconfig' -type f -delete
@@ -112,6 +117,7 @@ check_headers()
   kdir="${modules_path}/${KERNEL_VERSION}"
 
   [[ "${arch}" == "x86_64" ]] && arch="x86"
+  [[ "${arch}" == "aarch64" ]] && arch="arm64"
 
   [[ ! -e "${kdir}" ]] && return 1
   [[ ! -e "${kdir}/source" ]] && [[ ! -e "${kdir}/build" ]] && return 1
