@@ -31,7 +31,7 @@ IMAGE_BUILD_FLAGS_EXTRA ?= # convenience to allow to specify extra build flags w
 IMG_REPO ?= quay.io/iovisor/
 IMG_SHA ?= latest
 
-BPFTRACEVERSION ?= "v0.13.0"
+BPFTRACEVERSION ?= "v0.19.1"
 
 LDFLAGS := -ldflags '-X github.com/iovisor/kubectl-trace/pkg/version.buildTime=$(shell date +%s) -X github.com/iovisor/kubectl-trace/pkg/version.gitCommit=${GIT_COMMIT} -X github.com/iovisor/kubectl-trace/pkg/cmd.ImageName=${IMAGE_NAME_TRACERUNNER} -X github.com/iovisor/kubectl-trace/pkg/cmd.ImageTag=${GIT_COMMIT} -X github.com/iovisor/kubectl-trace/pkg/cmd.InitImageName=${IMAGE_NAME_INITCONTAINER} -X github.com/iovisor/kubectl-trace/pkg/cmd.InitImageTag=${GIT_COMMIT}'
 TESTPACKAGES := $(shell go list ./... | grep -v github.com/iovisor/kubectl-trace/integration)
