@@ -56,9 +56,10 @@ const (
 )
 
 var (
+	GitOrg = os.Getenv("GIT_ORG")
 	ContainerDependencies = []string{
-		"quay.io/iovisor/target-ruby",
-		"quay.io/iovisor/kubectl-trace-init",
+		"quay.io/%s/target-ruby",
+		"quay.io/%s/kubectl-trace-init",
 	}
 )
 
@@ -95,6 +96,10 @@ func init() {
 	if KubernetesBackend == "" {
 		KubernetesBackend = KubernetesKindBackend
 	}
+
+	if GitOrg == "" {
+		GitOrg = "iovisor"
+	}
 }
 
 func (k *KubectlTraceSuite) RunnerImage() string {
@@ -130,7 +135,7 @@ func (k *KubectlTraceSuite) SetupSuite() {
 
 	fmt.Println("Pushing dependencies...")
 	for _, image := range ContainerDependencies {
-		k.tagAndPushIntegrationImage(image, "latest")
+		k.tagAndPushIntegrationImage(fmt.Sprintf(image, GitOrg), "latest")
 	}
 
 	fmt.Println("Setting up targets...")
@@ -359,7 +364,7 @@ func (k *KubectlTraceSuite) runWithoutErrorWithStdin(input string, command strin
 }
 
 func (k *KubectlTraceSuite) createRubyTarget(namespace, name string, args ...string) (string, error) {
-	image := fmt.Sprintf("localhost:%d/iovisor/target-ruby:latest", RegistryRemotePort)
+	image := fmt.Sprintf("localhost:%d/%s/target-ruby:latest", RegistryRemotePort, GitOrg)
 	command := append([]string{"./fork-from-args"}, args...)
 
 	clientConfig, err := clientcmd.BuildConfigFromFlags("", k.kubeConfigPath)
