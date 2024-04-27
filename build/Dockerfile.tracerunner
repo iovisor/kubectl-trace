@@ -1,5 +1,5 @@
 # syntax = docker/dockerfile:1.2
-ARG bpftraceversion=v0.13.0
+ARG bpftraceversion=v0.19.1
 ARG bccversion=v0.21.0-focal-release
 ARG rbspyversion=0.8.0
 FROM quay.io/iovisor/bpftrace:$bpftraceversion as bpftrace
