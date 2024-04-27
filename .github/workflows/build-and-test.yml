@@ -13,7 +13,6 @@ jobs:
         - TEST_KUBERNETES_BACKEND: kind
     steps:
     - uses: actions/checkout@v2
-    - run: git fetch --prune --unshallow # We want tags
 
     - name: Initialize workflow variables
       id: vars
@@ -30,6 +29,14 @@ jobs:
           echo GIT_ORG=${git_org} >> $GITHUB_ENV
       env:
         QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
+
+    - name: Fetch Tags
+      run: |
+        git fetch --prune --unshallow
+        if [[ "$GIT_ORG" != iovisor ]]; then
+          git remote add upstream https://github.com/iovisor/kubectl-trace.git
+          git fetch upstream --tags
+        fi
 
     - name: Run tests
       run: |
