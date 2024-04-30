@@ -15,7 +15,7 @@ jobs:
         #- TEST_KUBERNETES_BACKEND: minikube
         - TEST_KUBERNETES_BACKEND: kind
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Initialize workflow variables
       id: vars
