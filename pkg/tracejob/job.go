@@ -349,7 +349,7 @@ func (nj *TraceJob) Job() *batchv1.Job {
 							// we will also wait for an arbitrary amount of time (10s) to give bpftrace time to
 							// process and summarize the data
 							Lifecycle: &apiv1.Lifecycle{
-								PreStop: &apiv1.Handler{
+								PreStop: &apiv1.LifecycleHandler{
 									Exec: &apiv1.ExecAction{
 										Command: []string{
 											"/bin/bash",

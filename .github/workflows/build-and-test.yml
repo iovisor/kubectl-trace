@@ -7,12 +7,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [
-          ubuntu-20.04,
-          ubuntu-latest,
-        ]
+        os: [ubuntu-20.04, ubuntu-latest]
         env:
-        #- TEST_KUBERNETES_BACKEND: minikube
+        - TEST_KUBERNETES_BACKEND: minikube
         - TEST_KUBERNETES_BACKEND: kind
     steps:
     - uses: actions/checkout@v4
@@ -61,13 +58,12 @@ jobs:
       env: ${{matrix.env}}
       if: ${{ env.TEST_KUBERNETES_BACKEND == 'minikube' }}
       run: |
-        curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        curl -LO https://storage.googleapis.com/minikube/releases/v1.31.2/minikube-linux-amd64
         sudo install minikube-linux-amd64 /usr/local/bin/minikube
 
     - name: Run integration tests
       env: ${{matrix.env}}
       run: |
-        sudo sysctl net/netfilter/nf_conntrack_max=131072 # https://github.com/kubernetes-sigs/kind/issues/2240
         make integration
 
 #    - name: Debug failure over SSH

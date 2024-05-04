@@ -52,7 +52,16 @@ func FindPidByPodContainer(podUID, containerID string) (string, error) {
 				// Note that these identifiers are currently specific to systemd, however, this mounting approach is what allows us to find the containerized
 				// process.
 				//
-				// EG: /kubepods/burstable/pod31dd0274-bb43-4975-bdbc-7e10047a23f8/851c75dad6ad8ce6a5d9b9129a4eb1645f7c6e5ba8406b12d50377b665737072
+				// EG: /kubelet.slice/kubelet-kubepods.slice/kubelet-kubepods-besteffort.slice/kubelet-kubepods-besteffort-pod18640755_cc12_4557_b96e_0f74d5b44d1d.slice/cri-containerd-66221e7d988e193822a3e8368b61ad9aeabf6b5276df76daebb7ea33bccc0b87.scope
+				//     /kubelet.slice/kubelet-kubepods.slice/kubelet-kubepods-besteffort.slice/kubelet-kubepods-besteffort-pod{POD_ID/-/_/}.slice/cri-containerd-{CONTAINER_ID}.scope
+				//     /kubepods/burstable/pod{POD_ID}/{CONTAINER_ID}
+				//
+				podNeedle := strings.ReplaceAll(podUID, "-", "_")
+				if strings.Contains(root, podNeedle) && strings.Contains(root, containerID) {
+					return dname, nil
+				}
+				// Here we also support a pre cgroup v2 format
+				//     /kubepods/burstable/pod31dd0274-bb43-4975-bdbc-7e10047a23f8/851c75dad6ad8ce6a5d9b9129a4eb1645f7c6e5ba8406b12d50377b665737072
 				//     /kubepods/burstable/pod{POD_ID}/{CONTAINER_ID}
 				//
 				// This "needle" that we look for in the mountinfo haystack should match one and only one container.
@@ -60,6 +69,7 @@ func FindPidByPodContainer(podUID, containerID string) (string, error) {
 				if strings.Contains(root, needle) {
 					return dname, nil
 				}
+
 			}
 		}
 	}

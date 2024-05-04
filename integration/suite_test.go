@@ -56,7 +56,7 @@ const (
 )
 
 var (
-	GitOrg = os.Getenv("GIT_ORG")
+	GitOrg                = os.Getenv("GIT_ORG")
 	ContainerDependencies = []string{
 		"quay.io/%s/target-ruby",
 		"quay.io/%s/kubectl-trace-init",
@@ -234,6 +234,9 @@ func (k *KubectlTraceSuite) AfterTest(suiteName, testName string) {
 	if k.namespaces[testName].Passed {
 		// delete the namespace if the test passed
 		k.deleteNamespace(k.namespace())
+	} else {
+		k.printPodLogs(k.namespace())
+		k.printPodLogs(k.targetNamespace)
 	}
 	k.lastTest = ""
 }
@@ -306,6 +309,28 @@ func (k *KubectlTraceSuite) GetJobsInNamespace(namespace string) *batchv1.JobLis
 	assert.Nil(k.T(), err)
 
 	return jobs
+}
+
+func (k *KubectlTraceSuite) printPodLogs(namespace string) {
+	clientConfig, err := clientcmd.BuildConfigFromFlags("", k.kubeConfigPath)
+	assert.Nil(k.T(), err)
+
+	clientset, err := kubernetes.NewForConfig(clientConfig)
+	assert.Nil(k.T(), err)
+
+	pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+
+	for _, p := range pods.Items {
+		fmt.Printf("~~ Pod: %s ~~\n", p.Name)
+		fmt.Printf("Status: %v\n", p.Status)
+
+		stream, err := clientset.CoreV1().Pods(namespace).GetLogs(p.Name, &apiv1.PodLogOptions{}).Stream(context.TODO())
+		if err != nil {
+			fmt.Printf("Failed to get pod logs: %v", err)
+		}
+		_, err = io.Copy(os.Stdout, stream)
+		assert.Nil(k.T(), err)
+	}
 }
 
 func (k *KubectlTraceSuite) namespace() string {
@@ -428,8 +453,15 @@ func (k *KubectlTraceSuite) createRubyTarget(namespace, name string, args ...str
 				if !ok {
 					return
 				}
-				pod = events.Object.(*apiv1.Pod)
-				status = pod.Status
+				switch v := events.Object.(type) {
+				case *apiv1.Pod:
+					pod = v
+					status = pod.Status
+					break
+				default:
+					fmt.Printf("unexpected event waiting for pod: %T %v\n", v, v)
+					continue
+				}
 				if pod.Status.Phase != apiv1.PodPending {
 					w.Stop()
 				}

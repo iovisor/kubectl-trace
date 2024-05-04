@@ -76,7 +76,7 @@ containerdConfigPatches:
 		assert.Nil(b.suite.T(), err)
 	}
 
-	b.provider.ExportKubeConfig(b.name, b.suite.kubeConfigPath)
+	b.provider.ExportKubeConfig(b.name, b.suite.kubeConfigPath, false)
 
 	// Start the registry container if not already started
 	comm := exec.Command("docker", "inspect", "-f", "{{.State.Running}}", "kind-registry")
