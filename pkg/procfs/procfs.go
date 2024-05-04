@@ -54,7 +54,6 @@ func FindPidByPodContainer(podUID, containerID string) (string, error) {
 				//
 				// EG: /kubelet.slice/kubelet-kubepods.slice/kubelet-kubepods-besteffort.slice/kubelet-kubepods-besteffort-pod18640755_cc12_4557_b96e_0f74d5b44d1d.slice/cri-containerd-66221e7d988e193822a3e8368b61ad9aeabf6b5276df76daebb7ea33bccc0b87.scope
 				//     /kubelet.slice/kubelet-kubepods.slice/kubelet-kubepods-besteffort.slice/kubelet-kubepods-besteffort-pod{POD_ID/-/_/}.slice/cri-containerd-{CONTAINER_ID}.scope
-				//     /kubepods/burstable/pod{POD_ID}/{CONTAINER_ID}
 				//
 				podNeedle := strings.ReplaceAll(podUID, "-", "_")
 				if strings.Contains(root, podNeedle) && strings.Contains(root, containerID) {
@@ -69,7 +68,6 @@ func FindPidByPodContainer(podUID, containerID string) (string, error) {
 				if strings.Contains(root, needle) {
 					return dname, nil
 				}
-
 			}
 		}
 	}
