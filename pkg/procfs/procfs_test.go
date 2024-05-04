@@ -12,6 +12,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestFindPidByPodContainer(t *testing.T) {
+	_ = setupBasePath(t)
+
+	assert.Nil(t, ProcFs.MkdirAll("/proc/1", 0755))
+	f, err := ProcFs.Create("/proc/1/mountinfo")
+	if assert.Nil(t, err) {
+		_, err = f.WriteString("1487 1486 0:32 /kubelet.slice/kubelet-kubepods.slice/kubelet-kubepods-besteffort.slice/kubelet-kubepods-besteffort-pod18640755_cc12_4557_b96e_0f74d5b44d1d.slice/cri-containerd-66221e7d988e193822a3e8368b61ad9aeabf6b5276df76daebb7ea33bccc0b87.scope /sys/fs/cgroup ro,nosuid,nodev,noexec,relatime - cgroup2 cgroup rw,nsdelegate,memory_recursiveprot\n")
+		assert.Nil(t, err)
+		assert.Nil(t, f.Close())
+	}
+
+	pid, err := FindPidByPodContainer(
+		"18640755-cc12-4557-b96e-0f74d5b44d1d",
+		"66221e7d988e193822a3e8368b61ad9aeabf6b5276df76daebb7ea33bccc0b87",
+	)
+	assert.Nil(t, err)
+	assert.Equal(t, "1", pid)
+}
+
 func TestFindPidsForContainerFindsTheContainer(t *testing.T) {
 	_ = setupBasePath(t)
 
