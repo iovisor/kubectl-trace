@@ -39,7 +39,7 @@ var (
   %[1]s trace get --all-namespaces`
 
 	argumentsErr     = fmt.Sprintf("at most one argument for %s command", getCommand)
-	missingTargetErr = fmt.Sprintf("specify either a TRACE_ID or a namespace or all namespaces")
+	missingTargetErr = "specify either a TRACE_ID or a namespace or all namespaces"
 )
 
 // GetOptions ...
