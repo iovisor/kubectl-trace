@@ -117,7 +117,7 @@ func ResolveTraceJobTarget(clientset kubernetes.Interface, resource, container, 
 		labels := node.GetLabels()
 		val, ok := labels["kubernetes.io/hostname"]
 		if !ok {
-			return nil, errors.NewErrorInvalid(fmt.Sprintf("label kubernetes.io/hostname not found in node"))
+			return nil, errors.NewErrorInvalid("label kubernetes.io/hostname not found in node")
 		}
 		target.Node = val
 
