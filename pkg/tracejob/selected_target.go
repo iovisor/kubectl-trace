@@ -277,8 +277,13 @@ func resolvePodToTarget(podClient corev1.PodInterface, resourceID, container, ta
 
 	for _, s := range pod.Status.ContainerStatuses {
 		if s.Name == targetContainer {
-			containerID := strings.TrimPrefix(s.ContainerID, "docker://")
-			containerID = strings.TrimPrefix(containerID, "containerd://")
+			// Trim the quotes and split the type and ID.
+			// See https://github.com/kubernetes/kubernetes/blob/ec93d3b71a6634659b59bf435959f4befafe3796/pkg/kubelet/container/runtime.go#L234
+			parts := strings.Split(strings.Trim(s.ContainerID, "\""), "://")
+			if len(parts) != 2 {
+				return fmt.Errorf("invalid container ID: %q", s.ContainerID)
+			}
+			containerID := parts[1]
 			target.ContainerID = containerID
 			break
 		}

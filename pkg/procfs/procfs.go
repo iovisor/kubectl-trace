@@ -51,13 +51,8 @@ func FindPidByPodContainer(podUID, containerID string) (string, error) {
 				// See https://github.com/kubernetes/kubernetes/blob/2f3a4ec9cb96e8e2414834991d63c59988c3c866/pkg/kubelet/cm/cgroup_manager_linux.go#L81-L85
 				// Note that these identifiers are currently specific to systemd, however, this mounting approach is what allows us to find the containerized
 				// process.
-				//
-				// EG: /kubepods/burstable/pod31dd0274-bb43-4975-bdbc-7e10047a23f8/851c75dad6ad8ce6a5d9b9129a4eb1645f7c6e5ba8406b12d50377b665737072
-				//     /kubepods/burstable/pod{POD_ID}/{CONTAINER_ID}
-				//
-				// This "needle" that we look for in the mountinfo haystack should match one and only one container.
-				needle := path.Join(podUID, containerID)
-				if strings.Contains(root, needle) {
+				// EG: /kubepods.slice/kubepods-burstable.slice/kubepods-burstable-pod40934a46_d409_4f4a_bb8b_1ec0b0436320.slice/cri-containerd-afc114c69e71f18166abd63715398d7daa763c69a6454f71157272ab0bdca783.scope
+				if strings.Contains(root, podUID) && strings.Contains(root, containerID) {
 					return dname, nil
 				}
 			}
