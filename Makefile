@@ -58,11 +58,11 @@ ${trace_uploader}:
 
 .PHONY: cross
 cross:
-	IMAGE_NAME_TRACERUNNER=$(IMAGE_NAME_TRACERUNNER) GO111MODULE=on goreleaser --snapshot --rm-dist
+	IMAGE_NAME_TRACERUNNER=$(IMAGE_NAME_TRACERUNNER) GO111MODULE=on goreleaser --snapshot --clean
 
 .PHONY: release
 release:
-	IMAGE_NAME_TRACERUNNER=$(IMAGE_NAME_TRACERUNNER) GO111MODULE=on goreleaser --rm-dist
+	IMAGE_NAME_TRACERUNNER=$(IMAGE_NAME_TRACERUNNER) GO111MODULE=on goreleaser --clean
 
 .PHONY: clean
 clean:
