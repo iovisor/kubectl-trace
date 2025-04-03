@@ -268,7 +268,7 @@ func resolvePodToTarget(podClient corev1.PodInterface, resourceID, container, ta
 	target.Node = pod.Spec.NodeName
 	target.PodUID = string(pod.UID)
 
-	if len(pod.Spec.Containers) == 1 {
+	if len(pod.Spec.Containers) == 1 && len(pod.Spec.InitContainers) == 0 {
 		targetContainer = pod.Spec.Containers[0].Name
 	} else {
 		// FIXME verify container is not empty
@@ -276,6 +276,15 @@ func resolvePodToTarget(podClient corev1.PodInterface, resourceID, container, ta
 	}
 
 	for _, s := range pod.Status.ContainerStatuses {
+		if s.Name == targetContainer {
+			containerID := strings.TrimPrefix(s.ContainerID, "docker://")
+			containerID = strings.TrimPrefix(containerID, "containerd://")
+			target.ContainerID = containerID
+			break
+		}
+	}
+
+	for _, s := range pod.Status.InitContainerStatuses {
 		if s.Name == targetContainer {
 			containerID := strings.TrimPrefix(s.ContainerID, "docker://")
 			containerID = strings.TrimPrefix(containerID, "containerd://")
