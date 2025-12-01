@@ -114,12 +114,7 @@ func ResolveTraceJobTarget(clientset kubernetes.Interface, resource, container, 
 			return nil, errors.NewErrorInvalid(fmt.Sprintf("Failed to locate a node for %s %v", resourceID, err))
 		}
 
-		labels := node.GetLabels()
-		val, ok := labels["kubernetes.io/hostname"]
-		if !ok {
-			return nil, errors.NewErrorInvalid("label kubernetes.io/hostname not found in node")
-		}
-		target.Node = val
+		target.Node = node.Name
 
 	case "pod":
 		podClient := clientset.CoreV1().Pods(targetNamespace)

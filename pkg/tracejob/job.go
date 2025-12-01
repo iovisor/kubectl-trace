@@ -367,9 +367,9 @@ func (nj *TraceJob) Job() *batchv1.Job {
 							RequiredDuringSchedulingIgnoredDuringExecution: &apiv1.NodeSelector{
 								NodeSelectorTerms: []apiv1.NodeSelectorTerm{
 									apiv1.NodeSelectorTerm{
-										MatchExpressions: []apiv1.NodeSelectorRequirement{
+										MatchFields: []apiv1.NodeSelectorRequirement{
 											apiv1.NodeSelectorRequirement{
-												Key:      "kubernetes.io/hostname",
+												Key:      "metadata.name",
 												Operator: apiv1.NodeSelectorOpIn,
 												Values:   []string{nj.Target.Node},
 											},
@@ -611,23 +611,33 @@ func jobHostname(j batchv1.Job) (string, error) {
 		return "", fmt.Errorf("node selector terms are empty in node affinity for job")
 	}
 
-	me := nst[0].MatchExpressions
-
-	if len(me) == 0 {
-		return "", fmt.Errorf("node selector terms match expressions are empty in node affinity for job")
-	}
-
-	for _, v := range me {
-		if v.Key == "kubernetes.io/hostname" {
-			if len(v.Values) == 0 {
-				return "", fmt.Errorf("hostname affinity found but no values in it for job")
+	// Check MatchFields first (new approach)
+	mf := nst[0].MatchFields
+	if len(mf) > 0 {
+		for _, v := range mf {
+			if v.Key == "metadata.name" {
+				if len(v.Values) == 0 {
+					return "", fmt.Errorf("node name affinity found but no values in it for job")
+				}
+				return v.Values[0], nil
 			}
-
-			return v.Values[0], nil
 		}
 	}
 
-	return "", fmt.Errorf("hostname not found for job")
+	// Fallback to MatchExpressions for backward compatibility
+	me := nst[0].MatchExpressions
+	if len(me) > 0 {
+		for _, v := range me {
+			if v.Key == "kubernetes.io/hostname" {
+				if len(v.Values) == 0 {
+					return "", fmt.Errorf("hostname affinity found but no values in it for job")
+				}
+				return v.Values[0], nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("node name not found for job")
 }
 
 // TraceJobStatus is a label for the running status of a trace job at the current time.
