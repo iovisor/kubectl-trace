@@ -71,11 +71,12 @@ clean:
 
 .PHONY: image/build-init
 image/build-init:
-	$(DOCKER) build \
+	DOCKER_BUILDKIT=1 $(DOCKER) buildx build \
 		--progress=$(DOCKER_BUILD_PROGRESS) \
 		-t $(IMAGE_INITCONTAINER_BRANCH) \
 		-f ./build/Dockerfile.initcontainer \
 		${IMAGE_BUILD_FLAGS_EXTRA} \
+		--load \
 		./build
 	$(DOCKER) tag "$(IMAGE_INITCONTAINER_BRANCH)" "$(IMAGE_INITCONTAINER_COMMIT)"
 	$(DOCKER) tag "$(IMAGE_INITCONTAINER_BRANCH)" "$(IMAGE_INITCONTAINER_TAG)"
@@ -83,7 +84,7 @@ image/build-init:
 
 .PHONY: image/build
 image/build:
-	DOCKER_BUILDKIT=1 $(DOCKER) build \
+	DOCKER_BUILDKIT=1 $(DOCKER) buildx build \
 		--build-arg bpftraceversion=$(BPFTRACEVERSION) \
 		--build-arg GIT_ORG=$(GIT_ORG) \
 		--progress=$(DOCKER_BUILD_PROGRESS) \
@@ -91,6 +92,7 @@ image/build:
 		--cache-from "$(IMAGE_TRACERUNNER_BRANCH)" \
 		-t "$(IMAGE_TRACERUNNER_BRANCH)" \
 		-f build/Dockerfile.tracerunner \
+		--load \
 		${IMAGE_BUILD_FLAGS_EXTRA} \
 		.
 	$(DOCKER) tag "$(IMAGE_TRACERUNNER_BRANCH)" "$(IMAGE_TRACERUNNER_COMMIT)"
